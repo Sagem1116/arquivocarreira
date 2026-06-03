@@ -77,14 +77,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "Arquivo de Carreira" },
+      { name: "description", content: "Guarda todas as tuas epocas do FM" },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "Arquivo de Carreira" },
+      { property: "og:description", content: "Guarda todas as tuas epocas do FM" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Arquivo de Carreira" },
+      { name: "twitter:description", content: "Guarda todas as tuas epocas do FM" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/425f99cb-d2b6-4c4a-aeb1-fe390102dc2b/id-preview-8330a148--c370e504-7afc-496c-83b5-7ebec4719e81.lovable.app-1780521754100.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/425f99cb-d2b6-4c4a-aeb1-fe390102dc2b/id-preview-8330a148--c370e504-7afc-496c-83b5-7ebec4719e81.lovable.app-1780521754100.png" },
     ],
     links: [
       {
