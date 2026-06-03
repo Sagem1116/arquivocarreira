@@ -9,38 +9,234 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TrophiesRouteImport } from './routes/trophies'
+import { Route as SystemRouteImport } from './routes/system'
+import { Route as StatsRouteImport } from './routes/stats'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as MentionsRouteImport } from './routes/mentions'
+import { Route as CareerTimelineRouteImport } from './routes/career-timeline'
+import { Route as AwardsRouteImport } from './routes/awards'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SeasonsIndexRouteImport } from './routes/seasons.index'
+import { Route as ClubsIndexRouteImport } from './routes/clubs.index'
+import { Route as SeasonsIdRouteImport } from './routes/seasons.$id'
+import { Route as ClubsIdRouteImport } from './routes/clubs.$id'
 
+const TrophiesRoute = TrophiesRouteImport.update({
+  id: '/trophies',
+  path: '/trophies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SystemRoute = SystemRouteImport.update({
+  id: '/system',
+  path: '/system',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatsRoute = StatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MentionsRoute = MentionsRouteImport.update({
+  id: '/mentions',
+  path: '/mentions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CareerTimelineRoute = CareerTimelineRouteImport.update({
+  id: '/career-timeline',
+  path: '/career-timeline',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AwardsRoute = AwardsRouteImport.update({
+  id: '/awards',
+  path: '/awards',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SeasonsIndexRoute = SeasonsIndexRouteImport.update({
+  id: '/seasons/',
+  path: '/seasons/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClubsIndexRoute = ClubsIndexRouteImport.update({
+  id: '/clubs/',
+  path: '/clubs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SeasonsIdRoute = SeasonsIdRouteImport.update({
+  id: '/seasons/$id',
+  path: '/seasons/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClubsIdRoute = ClubsIdRouteImport.update({
+  id: '/clubs/$id',
+  path: '/clubs/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/awards': typeof AwardsRoute
+  '/career-timeline': typeof CareerTimelineRoute
+  '/mentions': typeof MentionsRoute
+  '/profile': typeof ProfileRoute
+  '/stats': typeof StatsRoute
+  '/system': typeof SystemRoute
+  '/trophies': typeof TrophiesRoute
+  '/clubs/$id': typeof ClubsIdRoute
+  '/seasons/$id': typeof SeasonsIdRoute
+  '/clubs/': typeof ClubsIndexRoute
+  '/seasons/': typeof SeasonsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/awards': typeof AwardsRoute
+  '/career-timeline': typeof CareerTimelineRoute
+  '/mentions': typeof MentionsRoute
+  '/profile': typeof ProfileRoute
+  '/stats': typeof StatsRoute
+  '/system': typeof SystemRoute
+  '/trophies': typeof TrophiesRoute
+  '/clubs/$id': typeof ClubsIdRoute
+  '/seasons/$id': typeof SeasonsIdRoute
+  '/clubs': typeof ClubsIndexRoute
+  '/seasons': typeof SeasonsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/awards': typeof AwardsRoute
+  '/career-timeline': typeof CareerTimelineRoute
+  '/mentions': typeof MentionsRoute
+  '/profile': typeof ProfileRoute
+  '/stats': typeof StatsRoute
+  '/system': typeof SystemRoute
+  '/trophies': typeof TrophiesRoute
+  '/clubs/$id': typeof ClubsIdRoute
+  '/seasons/$id': typeof SeasonsIdRoute
+  '/clubs/': typeof ClubsIndexRoute
+  '/seasons/': typeof SeasonsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/awards'
+    | '/career-timeline'
+    | '/mentions'
+    | '/profile'
+    | '/stats'
+    | '/system'
+    | '/trophies'
+    | '/clubs/$id'
+    | '/seasons/$id'
+    | '/clubs/'
+    | '/seasons/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/awards'
+    | '/career-timeline'
+    | '/mentions'
+    | '/profile'
+    | '/stats'
+    | '/system'
+    | '/trophies'
+    | '/clubs/$id'
+    | '/seasons/$id'
+    | '/clubs'
+    | '/seasons'
+  id:
+    | '__root__'
+    | '/'
+    | '/awards'
+    | '/career-timeline'
+    | '/mentions'
+    | '/profile'
+    | '/stats'
+    | '/system'
+    | '/trophies'
+    | '/clubs/$id'
+    | '/seasons/$id'
+    | '/clubs/'
+    | '/seasons/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AwardsRoute: typeof AwardsRoute
+  CareerTimelineRoute: typeof CareerTimelineRoute
+  MentionsRoute: typeof MentionsRoute
+  ProfileRoute: typeof ProfileRoute
+  StatsRoute: typeof StatsRoute
+  SystemRoute: typeof SystemRoute
+  TrophiesRoute: typeof TrophiesRoute
+  ClubsIdRoute: typeof ClubsIdRoute
+  SeasonsIdRoute: typeof SeasonsIdRoute
+  ClubsIndexRoute: typeof ClubsIndexRoute
+  SeasonsIndexRoute: typeof SeasonsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/trophies': {
+      id: '/trophies'
+      path: '/trophies'
+      fullPath: '/trophies'
+      preLoaderRoute: typeof TrophiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/system': {
+      id: '/system'
+      path: '/system'
+      fullPath: '/system'
+      preLoaderRoute: typeof SystemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stats': {
+      id: '/stats'
+      path: '/stats'
+      fullPath: '/stats'
+      preLoaderRoute: typeof StatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mentions': {
+      id: '/mentions'
+      path: '/mentions'
+      fullPath: '/mentions'
+      preLoaderRoute: typeof MentionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/career-timeline': {
+      id: '/career-timeline'
+      path: '/career-timeline'
+      fullPath: '/career-timeline'
+      preLoaderRoute: typeof CareerTimelineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/awards': {
+      id: '/awards'
+      path: '/awards'
+      fullPath: '/awards'
+      preLoaderRoute: typeof AwardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,12 +244,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/seasons/': {
+      id: '/seasons/'
+      path: '/seasons'
+      fullPath: '/seasons/'
+      preLoaderRoute: typeof SeasonsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clubs/': {
+      id: '/clubs/'
+      path: '/clubs'
+      fullPath: '/clubs/'
+      preLoaderRoute: typeof ClubsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/seasons/$id': {
+      id: '/seasons/$id'
+      path: '/seasons/$id'
+      fullPath: '/seasons/$id'
+      preLoaderRoute: typeof SeasonsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clubs/$id': {
+      id: '/clubs/$id'
+      path: '/clubs/$id'
+      fullPath: '/clubs/$id'
+      preLoaderRoute: typeof ClubsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AwardsRoute: AwardsRoute,
+  CareerTimelineRoute: CareerTimelineRoute,
+  MentionsRoute: MentionsRoute,
+  ProfileRoute: ProfileRoute,
+  StatsRoute: StatsRoute,
+  SystemRoute: SystemRoute,
+  TrophiesRoute: TrophiesRoute,
+  ClubsIdRoute: ClubsIdRoute,
+  SeasonsIdRoute: SeasonsIdRoute,
+  ClubsIndexRoute: ClubsIndexRoute,
+  SeasonsIndexRoute: SeasonsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
