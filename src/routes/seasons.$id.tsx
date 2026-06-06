@@ -87,6 +87,7 @@ function SeasonDetail() {
           <TabsTrigger value="objectives">Objetivos</TabsTrigger>
           <TabsTrigger value="gallery">Galeria</TabsTrigger>
           <TabsTrigger value="moments">Momentos</TabsTrigger>
+          <TabsTrigger value="files">Ficheiros</TabsTrigger>
         </TabsList>
 
         {/* INFO */}
