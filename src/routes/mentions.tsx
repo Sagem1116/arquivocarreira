@@ -175,14 +175,14 @@ function Mentions() {
         </Select>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Select value={sortKey} onValueChange={setSortKey}>
+          <Select value={sortKey} onValueChange={(v) => setSortKey(v as any)}>
             <SelectTrigger className="w-full"><ArrowUpDown className="h-3 w-3 mr-1" /><SelectValue placeholder="Ordenar" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="date">Data</SelectItem>
               <SelectItem value="title">Título</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={sortDirection} onValueChange={setSortDirection}>
+          <Select value={sortDirection} onValueChange={(v) => setSortDirection(v as any)}>
             <SelectTrigger className="w-full"><SelectValue placeholder="Direção" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="desc">Mais recentes</SelectItem>
