@@ -76,7 +76,7 @@ function Seasons() {
                   </Select>
                 </div>
                 <label className="flex items-center gap-3">
-                  <Checkbox checked={isPartial} onCheckedChange={setIsPartial} />
+                  <Checkbox checked={isPartial} onCheckedChange={(v) => setIsPartial(v === true)} />
                   <span className="text-sm text-muted-foreground">Temporada incompleta</span>
                 </label>
                 <Button
