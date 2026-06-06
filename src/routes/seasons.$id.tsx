@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, Trophy, Plus, X, Image as ImageIcon, Sparkles, Upload, Trash2 } from "lucide-react";
+import { ArrowLeft, Trophy, Plus, X, Image as ImageIcon, Sparkles, Upload, Trash2, FileText, Download, Paperclip } from "lucide-react";
 import { useArchive, uid } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -87,6 +87,7 @@ function SeasonDetail() {
           <TabsTrigger value="objectives">Objetivos</TabsTrigger>
           <TabsTrigger value="gallery">Galeria</TabsTrigger>
           <TabsTrigger value="moments">Momentos</TabsTrigger>
+          <TabsTrigger value="files">Ficheiros</TabsTrigger>
         </TabsList>
 
         {/* INFO */}
@@ -406,6 +407,11 @@ function SeasonDetail() {
             </Button>
           </div>
         </TabsContent>
+
+        {/* FILES */}
+        <TabsContent value="files">
+          <FilesTab draft={draft} save={save} />
+        </TabsContent>
       </Tabs>
 
       {lb && <Lightbox images={lb.images} index={lb.index} onClose={() => setLb(null)} onIndex={() => {}} />}
@@ -433,4 +439,133 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function NumIn({ v, on }: { v?: number; on: (n: number) => void }) {
   return <Input type="number" value={v ?? ""} onChange={(e) => on(Number(e.target.value) || 0)} />;
+}
+
+function formatBytes(n: number) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const files = draft.files || [];
+  const MAX = 25 * 1024 * 1024; // 25MB per file
+
+  const handleFiles = async (list: FileList | null) => {
+    if (!list || list.length === 0) return;
+    const added: import("@/lib/types").SeasonFile[] = [];
+    for (const f of Array.from(list)) {
+      if (f.size > MAX) {
+        toast.error(`${f.name} é demasiado grande (>25MB)`);
+        continue;
+      }
+      try {
+        const dataUrl = await fileToDataUrl(f);
+        added.push({
+          id: uid(),
+          name: f.name,
+          type: f.type || "application/octet-stream",
+          size: f.size,
+          dataUrl,
+          addedAt: Date.now(),
+        });
+      } catch {
+        toast.error(`Falha a ler ${f.name}`);
+      }
+    }
+    if (added.length) {
+      save({ files: [...files, ...added] });
+      toast.success(`${added.length} ficheiro(s) adicionado(s)`);
+    }
+  };
+
+  const download = (f: import("@/lib/types").SeasonFile) => {
+    const a = document.createElement("a");
+    a.href = f.dataUrl;
+    a.download = f.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const remove = (id: string) => {
+    if (!confirm("Apagar este ficheiro?")) return;
+    save({ files: files.filter((x) => x.id !== id) });
+    toast.success("Ficheiro apagado");
+  };
+
+  return (
+    <div className="card-elevated rounded-2xl p-6">
+      <div
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          void handleFiles(e.dataTransfer.files);
+        }}
+        onClick={() => inputRef.current?.click()}
+        className="cursor-pointer rounded-2xl border-2 border-dashed border-border hover:border-primary/60 hover:bg-muted/20 p-8 text-center transition mb-6"
+      >
+        <Paperclip className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+        <div className="text-sm font-medium">Carregar ficheiros</div>
+        <div className="text-xs text-muted-foreground mt-1">
+          Arrasta para aqui ou clica. Qualquer tipo. Máx 25MB cada. Guardados na app.
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            void handleFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+      </div>
+
+      {files.length === 0 ? (
+        <div className="text-sm text-muted-foreground py-8 text-center">
+          <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          Sem ficheiros nesta temporada.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {files
+            .slice()
+            .sort((a, b) => b.addedAt - a.addedAt)
+            .map((f) => (
+              <div
+                key={f.id}
+                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 hover:border-primary/40 transition"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="truncate text-sm font-medium">{f.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatBytes(f.size)} · {new Date(f.addedAt).toLocaleDateString()}
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => download(f)}>
+                  <Download className="h-3.5 w-3.5 mr-1.5" /> Download
+                </Button>
+                <Button size="icon" variant="ghost" onClick={() => remove(f.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
 }

@@ -47,6 +47,15 @@ export interface SeasonMoment {
   image?: string;
 }
 
+export interface SeasonFile {
+  id: ID;
+  name: string;
+  type: string;
+  size: number;
+  dataUrl: string; // base64 data URL for persistence in IndexedDB
+  addedAt: number;
+}
+
 export interface Season {
   id: ID;
   year: string; // e.g. 2025/26
@@ -63,6 +72,7 @@ export interface Season {
   competitions: SeasonCompetition[];
   gallery: SeasonGalleryImage[];
   moments: SeasonMoment[];
+  files?: SeasonFile[];
   createdAt: number;
 }
 
