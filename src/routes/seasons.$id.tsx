@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, Trophy, Plus, X, Image as ImageIcon, Sparkles, Upload, Trash2, FileText, Download, Paperclip } from "lucide-react";
+import { useState, useRef, useEffect, useId } from "react";
+import { ArrowLeft, Trophy, Plus, X, Image as ImageIcon, Sparkles, Upload, Trash2, FileText, Download, Paperclip, Link as LinkIcon, ExternalLink } from "lucide-react";
 import { useArchive, uid } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,6 +11,8 @@ import { ClubBadge } from "@/components/ClubBadge";
 import { Lightbox } from "@/components/Lightbox";
 import { readFilesAsBase64 } from "@/components/ImageUpload";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -458,12 +460,21 @@ function fileToDataUrl(file: File): Promise<string> {
 
 function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [pendingKind, setPendingKind] = useState<"game" | "save">("save");
   const localFiles = draft.files || [];
+  const fileMeta = useArchive((s) => s.data.fileMeta || {});
+  const setFileMeta = useArchive((s) => s.setFileMeta);
+  const removeFileMeta = useArchive((s) => s.removeFileMeta);
+
   const [cloudFiles, setCloudFiles] = useState<Array<{
     id: string; name: string; mime_type: string | null; size: number; storage_path: string; created_at: string;
   }>>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState<{ name: string; pct: number } | null>(null);
+  const [showLink, setShowLink] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkName, setLinkName] = useState("");
+  const [savingLink, setSavingLink] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -487,16 +498,26 @@ function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) =
     if (!list || list.length === 0) return;
     const { supabase } = await import("@/integrations/supabase/client");
     for (const f of Array.from(list)) {
-      setUploading({ name: f.name, pct: 0 });
+      setUploading({ name: f.name, pct: 5 });
+      // Simulated progress while supabase-js uploads (no native progress callback)
+      const startedAt = Date.now();
+      const estimatedMs = Math.max(800, Math.min(20000, (f.size / (300 * 1024)) * 1000));
+      const interval = setInterval(() => {
+        const elapsed = Date.now() - startedAt;
+        const pct = Math.min(92, 5 + (elapsed / estimatedMs) * 87);
+        setUploading((u) => (u ? { ...u, pct } : u));
+      }, 150);
       const path = `${draft.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${f.name}`;
       const { error: upErr } = await supabase.storage
         .from("season-files")
         .upload(path, f, { contentType: f.type || "application/octet-stream", upsert: false });
+      clearInterval(interval);
       if (upErr) {
         toast.error(`Falha a carregar ${f.name}: ${upErr.message}`);
         setUploading(null);
         continue;
       }
+      setUploading({ name: f.name, pct: 96 });
       const { data: row, error: insErr } = await (supabase.from as any)("season_files")
         .insert({
           season_id: draft.id,
@@ -511,12 +532,54 @@ function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) =
         toast.error(`Metadados de ${f.name} falharam`);
         await supabase.storage.from("season-files").remove([path]);
       } else {
+        setUploading({ name: f.name, pct: 100 });
         setCloudFiles((prev) => [row, ...prev]);
-        toast.success(`${f.name} carregado`);
+        setFileMeta(row.id, { kind: pendingKind, images: [] });
+        toast.success(`${f.name} carregado como ${pendingKind === "game" ? "Jogo" : "Save"}`);
       }
-      setUploading(null);
+      setTimeout(() => setUploading(null), 350);
     }
   };
+
+  const handleAddLink = async () => {
+    const raw = linkUrl.trim();
+    if (!raw) return toast.error("Indica um URL");
+    const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    try {
+      // eslint-disable-next-line no-new
+      new URL(url);
+    } catch {
+      return toast.error("URL inválido");
+    }
+    setSavingLink(true);
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data: row, error } = await (supabase.from as any)("season_files")
+        .insert({
+          season_id: draft.id,
+          name: linkName.trim() || url,
+          mime_type: "link",
+          size: 0,
+          storage_path: url,
+        })
+        .select()
+        .single();
+      if (error || !row) {
+        toast.error("Falha a guardar link");
+      } else {
+        setCloudFiles((prev) => [row, ...prev]);
+        setFileMeta(row.id, { kind: pendingKind, images: [] });
+        toast.success(`Link adicionado como ${pendingKind === "game" ? "Jogo" : "Save"}`);
+        setLinkUrl("");
+        setLinkName("");
+        setShowLink(false);
+      }
+    } finally {
+      setSavingLink(false);
+    }
+  };
+
+
 
   const downloadCloud = async (f: { name: string; storage_path: string }) => {
     const { supabase } = await import("@/integrations/supabase/client");
@@ -535,10 +598,13 @@ function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) =
   const removeCloud = async (f: { id: string; storage_path: string }) => {
     if (!confirm("Apagar este ficheiro?")) return;
     const { supabase } = await import("@/integrations/supabase/client");
-    await supabase.storage.from("season-files").remove([f.storage_path]);
+    const meta = fileMeta[f.id];
+    const allPaths = [f.storage_path, ...(meta?.images.map((i) => i.path) || [])];
+    await supabase.storage.from("season-files").remove(allPaths);
     const { error } = await (supabase.from as any)("season_files").delete().eq("id", f.id);
     if (error) return toast.error("Falha a apagar");
     setCloudFiles((prev) => prev.filter((x) => x.id !== f.id));
+    removeFileMeta(f.id);
     toast.success("Ficheiro apagado");
   };
 
@@ -559,6 +625,36 @@ function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) =
 
   return (
     <div className="card-elevated rounded-2xl p-6">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <span className="text-xs uppercase tracking-widest text-muted-foreground mr-2">Tipo do próximo upload:</span>
+        <Button
+          type="button"
+          size="sm"
+          variant={pendingKind === "save" ? "default" : "outline"}
+          onClick={() => setPendingKind("save")}
+        >
+          Save
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={pendingKind === "game" ? "default" : "outline"}
+          onClick={() => setPendingKind("game")}
+        >
+          Jogo
+        </Button>
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          void handleFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
       <div
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -566,30 +662,92 @@ function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) =
           void handleFiles(e.dataTransfer.files);
         }}
         onClick={() => inputRef.current?.click()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
         className="cursor-pointer rounded-2xl border-2 border-dashed border-border hover:border-primary/60 hover:bg-muted/20 p-8 text-center transition mb-6"
       >
         <Paperclip className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-        <div className="text-sm font-medium">Carregar ficheiros para a cloud</div>
-        <div className="text-xs text-muted-foreground mt-1">
-          Arrasta para aqui ou clica. Qualquer tipo e tamanho (saves do FM, vídeos, PDFs…). Guardados na nuvem.
+        <div className="text-sm font-medium">
+          Carregar ficheiros como <strong className="text-primary">{pendingKind === "game" ? "Jogo" : "Save"}</strong>
         </div>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            void handleFiles(e.target.files);
-            e.target.value = "";
+        <div className="text-xs text-muted-foreground mt-1">
+          Arrasta para aqui ou clica para escolher. Saves do FM, vídeos do jogo, etc.
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="mt-3"
+          onClick={(e) => {
+            e.stopPropagation();
+            inputRef.current?.click();
           }}
-        />
+        >
+          <Upload className="h-3.5 w-3.5 mr-1.5" /> Escolher ficheiros
+        </Button>
       </div>
 
+      <div className="mb-6">
+        {!showLink ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setShowLink(true)}
+          >
+            <LinkIcon className="h-3.5 w-3.5 mr-1.5" /> Adicionar link
+          </Button>
+        ) : (
+          <div className="rounded-2xl border border-border bg-surface p-4 space-y-3">
+            <div className="text-sm font-medium flex items-center gap-2">
+              <LinkIcon className="h-4 w-4 text-primary" />
+              Novo link como <strong className="text-primary">{pendingKind === "game" ? "Jogo" : "Save"}</strong>
+            </div>
+            <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2">
+              <Input
+                placeholder="https://…"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                autoFocus
+              />
+              <Input
+                placeholder="Nome (opcional)"
+                value={linkName}
+                onChange={(e) => setLinkName(e.target.value)}
+              />
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => void handleAddLink()} disabled={savingLink}>
+                  {savingLink ? "A guardar…" : "Guardar"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setShowLink(false); setLinkUrl(""); setLinkName(""); }}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              YouTube, Twitch VOD, post de blog, partilha externa do save, etc.
+            </p>
+          </div>
+        )}
+      </div>
+
+
       {uploading && (
-        <div className="mb-4 rounded-xl border border-primary/40 bg-primary/5 p-3 text-sm">
-          A carregar <strong>{uploading.name}</strong>…
+        <div className="mb-4 rounded-xl border border-primary/40 bg-primary/5 p-3">
+          <div className="flex items-center justify-between text-sm mb-2">
+            <span className="truncate">A carregar <strong>{uploading.name}</strong></span>
+            <span className="text-xs text-muted-foreground tabular-nums">{Math.round(uploading.pct)}%</span>
+          </div>
+          <Progress value={uploading.pct} />
         </div>
       )}
+
 
       {/* Cloud files */}
       <div className="mb-6">
@@ -604,29 +762,40 @@ function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) =
             Sem ficheiros na cloud.
           </div>
         ) : (
-          <div className="space-y-2">
-            {cloudFiles.map((f) => (
-              <div
-                key={f.id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 hover:border-primary/40 transition"
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
-                  <FileText className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="truncate text-sm font-medium">{f.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatBytes(f.size)} · {new Date(f.created_at).toLocaleDateString()}
-                  </div>
-                </div>
-                <Button size="sm" variant="outline" onClick={() => downloadCloud(f)}>
-                  <Download className="h-3.5 w-3.5 mr-1.5" /> Download
-                </Button>
-                <Button size="icon" variant="ghost" onClick={() => removeCloud(f)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+          <div className="space-y-3">
+            {cloudFiles.map((f) => {
+              const meta = fileMeta[f.id] || { kind: "save" as const, images: [] };
+              return (
+                <CloudFileRow
+                  key={f.id}
+                  file={f}
+                  meta={meta}
+                  onChangeKind={(k) => setFileMeta(f.id, { ...meta, kind: k })}
+                  onAddImages={async (files) => {
+                    const { uploadGameImage } = await import("@/lib/season-files");
+                    const added: { path: string; name: string }[] = [];
+                    for (const img of Array.from(files)) {
+                      try {
+                        added.push(await uploadGameImage(draft.id, f.id, img));
+                      } catch {
+                        toast.error(`Falha a carregar ${img.name}`);
+                      }
+                    }
+                    if (added.length) {
+                      setFileMeta(f.id, { ...meta, images: [...meta.images, ...added] });
+                      toast.success(`${added.length} imagem(ns) adicionada(s)`);
+                    }
+                  }}
+                  onRemoveImage={async (path) => {
+                    const { removeStorageObjects } = await import("@/lib/season-files");
+                    await removeStorageObjects([path]);
+                    setFileMeta(f.id, { ...meta, images: meta.images.filter((i) => i.path !== path) });
+                  }}
+                  onDownload={() => downloadCloud(f)}
+                  onRemove={() => removeCloud(f)}
+                />
+              );
+            })}
           </div>
         )}
       </div>
@@ -669,3 +838,126 @@ function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) =
     </div>
   );
 }
+
+function CloudFileRow({
+  file,
+  meta,
+  onChangeKind,
+  onAddImages,
+  onRemoveImage,
+  onDownload,
+  onRemove,
+}: {
+  file: { id: string; name: string; size: number; created_at: string; storage_path: string; mime_type: string | null };
+  meta: import("@/lib/types").CloudFileMeta;
+  onChangeKind: (k: "game" | "save") => void;
+  onAddImages: (files: FileList) => void | Promise<void>;
+  onRemoveImage: (path: string) => void | Promise<void>;
+  onDownload: () => void;
+  onRemove: () => void;
+}) {
+  const imageInputId = useId();
+  const isLink = file.mime_type === "link" || /^https?:\/\//i.test(file.storage_path);
+  return (
+    <div className="rounded-xl border border-border bg-surface p-3 hover:border-primary/40 transition">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+          {isLink ? <LinkIcon className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="truncate text-sm font-medium">{file.name}</div>
+          <div className="text-xs text-muted-foreground truncate">
+            {isLink
+              ? file.storage_path
+              : `${formatBytes(file.size)} · ${new Date(file.created_at).toLocaleDateString()}`}
+          </div>
+        </div>
+        <Select value={meta.kind} onValueChange={(v: any) => onChangeKind(v)}>
+          <SelectTrigger className="h-8 w-24 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="save">Save</SelectItem>
+            <SelectItem value="game">Jogo</SelectItem>
+          </SelectContent>
+        </Select>
+        {isLink ? (
+          <Button size="sm" variant="outline" asChild>
+            <a href={file.storage_path} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Abrir
+            </a>
+          </Button>
+        ) : (
+          <Button size="sm" variant="outline" onClick={onDownload}>
+            <Download className="h-3.5 w-3.5 mr-1.5" /> Download
+          </Button>
+        )}
+        <Button size="icon" variant="ghost" onClick={onRemove}>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+
+
+      {meta.kind === "game" && (
+        <div className="mt-3 border-t border-border/60 pt-3">
+          <input
+            id={imageInputId}
+            type="file"
+            multiple
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files && e.target.files.length > 0) void onAddImages(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs uppercase tracking-widest text-muted-foreground">
+              Imagens do jogo ({meta.images.length})
+            </div>
+            <Button asChild size="sm" variant="outline">
+              <label htmlFor={imageInputId} className="cursor-pointer">
+                <ImageIcon className="h-3.5 w-3.5 mr-1.5" /> Adicionar imagens
+              </label>
+            </Button>
+          </div>
+          {meta.images.length > 0 && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+              {meta.images.map((img) => (
+                <GameImageThumb key={img.path} path={img.path} onRemove={() => onRemoveImage(img.path)} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GameImageThumb({ path, onRemove }: { path: string; onRemove: () => void }) {
+  const [url, setUrl] = useState<string>();
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { signedUrl } = await import("@/lib/season-files");
+      try {
+        const u = await signedUrl(path);
+        if (!cancelled) setUrl(u);
+      } catch {
+        /* noop */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [path]);
+  return (
+    <div className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/30">
+      {url && <img src={url} alt="" className="h-full w-full object-cover" />}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute top-1 right-1 rounded-full bg-background/80 p-1 opacity-0 group-hover:opacity-100 transition hover:bg-destructive"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+

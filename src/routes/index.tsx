@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import {
   Trophy,
   Shield,
@@ -9,12 +10,15 @@ import {
   Sparkles,
   ArrowRight,
   Plus,
+  HardDrive,
 } from "lucide-react";
 import { useArchive } from "@/lib/store";
 import { uniqueSeasonYears, uniqueSeasonYearsByClub } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { ClubBadge } from "@/components/ClubBadge";
 import { Button } from "@/components/ui/button";
+import { fetchTotalUsedBytes } from "@/lib/season-files";
+
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -108,7 +112,11 @@ function Dashboard() {
         ))}
       </div>
 
+      {/* Storage usage */}
+      <StorageUsage />
+
       {/* Current club + recent trophies */}
+
       <div className="grid lg:grid-cols-3 gap-6 mb-8">
         <div className="lg:col-span-1 card-elevated rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
@@ -287,3 +295,46 @@ function KPI({ label, value, accent }: { label: string; value: string | number; 
     </div>
   );
 }
+
+function formatBytes(n: number) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function StorageUsage() {
+  const [used, setUsed] = useState<number | null>(null);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    fetchTotalUsedBytes()
+      .then((n) => setUsed(n))
+      .catch(() => setError(true));
+  }, []);
+  return (
+    <div className="card-elevated rounded-2xl p-6 mb-8">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-semibold flex items-center gap-2">
+          <HardDrive className="h-4 w-4 text-primary" /> Armazenamento
+        </h3>
+        <div className="text-xs text-muted-foreground">Espaço usado na cloud</div>
+      </div>
+      {error ? (
+        <div className="text-sm text-muted-foreground">Sem ligação à cloud.</div>
+      ) : used == null ? (
+        <div className="text-sm text-muted-foreground">A calcular…</div>
+      ) : (
+        <div className="space-y-2 text-sm">
+          <div>
+            <span className="text-2xl font-bold text-primary">{formatBytes(used)}</span>
+            <span className="text-muted-foreground"> usados</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            A app já não mostra uma quota inventada. A capacidade real de armazenamento é definida pela configuração/plano da cloud do projeto, não por este ecrã.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+

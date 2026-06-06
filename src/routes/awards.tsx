@@ -170,7 +170,20 @@ function Awards() {
         <StatCard label="Favoritos" value={favoriteCount} icon={Star} />
       </div>
 
+      <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-4">
+        <TabsList className="flex flex-wrap h-auto">
+          <TabsTrigger value="all">Todos <span className="ml-1.5 text-[10px] opacity-60">{awards.length}</span></TabsTrigger>
+          <TabsTrigger value="weekly">Semanais <span className="ml-1.5 text-[10px] opacity-60">{awards.filter((a) => a.type === "weekly").length}</span></TabsTrigger>
+          <TabsTrigger value="monthly">Mensais <span className="ml-1.5 text-[10px] opacity-60">{awards.filter((a) => a.type === "monthly").length}</span></TabsTrigger>
+          <TabsTrigger value="yearly">Anuais <span className="ml-1.5 text-[10px] opacity-60">{awards.filter((a) => a.type === "yearly").length}</span></TabsTrigger>
+          <TabsTrigger value="hof">Hall of Fame <span className="ml-1.5 text-[10px] opacity-60">{awards.filter((a) => a.type === "hof").length}</span></TabsTrigger>
+          <TabsTrigger value="record">Recordes <span className="ml-1.5 text-[10px] opacity-60">{awards.filter((a) => a.type === "record").length}</span></TabsTrigger>
+          <TabsTrigger value="nomination" className="opacity-70">Nomeações <span className="ml-1.5 text-[10px] opacity-60">{awards.filter((a) => a.type === "nomination").length}</span></TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <div className="card-elevated rounded-2xl p-4 mb-6 grid gap-3 sm:grid-cols-[minmax(240px,1fr)_minmax(220px,280px)_minmax(220px,280px)] lg:grid-cols-[1.2fr_1fr_1fr] items-center">
+
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input className="pl-8" placeholder="Pesquisar título, tipo, data…" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -230,8 +243,9 @@ function Awards() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.02 }}
                 onClick={() => { setEditing(a); setOpen(true); }}
-                className="group relative card-elevated rounded-3xl p-5 text-left overflow-hidden border border-transparent transition hover:border-primary/50 hover:-translate-y-0.5"
+                className={`group relative card-elevated rounded-3xl p-5 text-left overflow-hidden border border-transparent transition hover:border-primary/50 hover:-translate-y-0.5 ${a.type === "nomination" ? "opacity-70 saturate-75" : ""}`}
               >
+
                 <button
                   type="button"
                   onClick={(event) => { event.stopPropagation(); toggleFavorite(a.id); }}
@@ -268,7 +282,7 @@ function Awards() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.02 }}
                 onClick={() => { setEditing(a); setOpen(true); }}
-                className="card-elevated rounded-3xl p-5 text-left border border-transparent hover:border-primary/50 transition"
+                className={`card-elevated rounded-3xl p-5 text-left border border-transparent hover:border-primary/50 transition ${a.type === "nomination" ? "opacity-70 saturate-75" : ""}`}
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>

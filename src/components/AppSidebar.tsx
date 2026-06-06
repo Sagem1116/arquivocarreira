@@ -14,6 +14,8 @@ import {
   Search,
   ChevronsLeft,
   ChevronsRight,
+  Gamepad2,
+  Save,
 } from "lucide-react";
 import { useArchive } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -27,9 +29,12 @@ const items = [
   { to: "/trophies", label: "Títulos", icon: Trophy },
   { to: "/awards", label: "Prémios", icon: Medal },
   { to: "/mentions", label: "Menções", icon: Sparkles },
+  { to: "/games", label: "Jogos", icon: Gamepad2 },
+  { to: "/saves", label: "Saves", icon: Save },
   { to: "/stats", label: "Estatísticas", icon: BarChart3 },
   { to: "/system", label: "Sistema", icon: Settings },
 ];
+
 
 export function AppSidebar() {
   const path = useRouterState({ select: (s) => s.location.pathname });

@@ -21,8 +21,10 @@ const initial: ArchiveData = {
   awards: [],
   mentions: [],
   favorites: [],
+  fileMeta: {},
   version: 1,
 };
+
 
 export const uid = () =>
   Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -57,9 +59,13 @@ type Store = {
 
   toggleFavorite: (id: ID) => void;
 
+  setFileMeta: (id: string, meta: import("./types").CloudFileMeta) => void;
+  removeFileMeta: (id: string) => void;
+
   importJSON: (data: ArchiveData) => void;
   reset: () => void;
 };
+
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -194,6 +200,20 @@ export const useArchive = create<Store>((set, get) => {
           ? d.favorites.filter((x) => x !== id)
           : [...d.favorites, id];
       }),
+
+    setFileMeta: (id, meta) =>
+      update((d) => {
+        d.fileMeta = { ...(d.fileMeta || {}), [id]: meta };
+      }),
+    removeFileMeta: (id) =>
+      update((d) => {
+        if (!d.fileMeta) return;
+        const next = { ...d.fileMeta };
+        delete next[id];
+        d.fileMeta = next;
+      }),
+
+
 
     importJSON: (data) => {
       set({ data: { ...initial, ...data } });

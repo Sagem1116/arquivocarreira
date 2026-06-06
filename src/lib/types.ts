@@ -105,6 +105,11 @@ export interface Mention {
   date?: string;
 }
 
+export interface CloudFileMeta {
+  kind: "game" | "save";
+  images: { path: string; name: string }[];
+}
+
 export interface ArchiveData {
   profile: CoachProfile;
   clubs: Club[];
@@ -113,5 +118,8 @@ export interface ArchiveData {
   awards: Award[];
   mentions: Mention[];
   favorites: ID[];
+  // Local metadata for cloud season_files (id → meta)
+  fileMeta?: Record<string, CloudFileMeta>;
   version: 1;
 }
+

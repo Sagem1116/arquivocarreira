@@ -12,8 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrophiesRouteImport } from './routes/trophies'
 import { Route as SystemRouteImport } from './routes/system'
 import { Route as StatsRouteImport } from './routes/stats'
+import { Route as SavesRouteImport } from './routes/saves'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as MentionsRouteImport } from './routes/mentions'
+import { Route as GamesRouteImport } from './routes/games'
 import { Route as CareerTimelineRouteImport } from './routes/career-timeline'
 import { Route as AwardsRouteImport } from './routes/awards'
 import { Route as IndexRouteImport } from './routes/index'
@@ -37,6 +39,11 @@ const StatsRoute = StatsRouteImport.update({
   path: '/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SavesRoute = SavesRouteImport.update({
+  id: '/saves',
+  path: '/saves',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -45,6 +52,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const MentionsRoute = MentionsRouteImport.update({
   id: '/mentions',
   path: '/mentions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GamesRoute = GamesRouteImport.update({
+  id: '/games',
+  path: '/games',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CareerTimelineRoute = CareerTimelineRouteImport.update({
@@ -87,8 +99,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/awards': typeof AwardsRoute
   '/career-timeline': typeof CareerTimelineRoute
+  '/games': typeof GamesRoute
   '/mentions': typeof MentionsRoute
   '/profile': typeof ProfileRoute
+  '/saves': typeof SavesRoute
   '/stats': typeof StatsRoute
   '/system': typeof SystemRoute
   '/trophies': typeof TrophiesRoute
@@ -101,8 +115,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/awards': typeof AwardsRoute
   '/career-timeline': typeof CareerTimelineRoute
+  '/games': typeof GamesRoute
   '/mentions': typeof MentionsRoute
   '/profile': typeof ProfileRoute
+  '/saves': typeof SavesRoute
   '/stats': typeof StatsRoute
   '/system': typeof SystemRoute
   '/trophies': typeof TrophiesRoute
@@ -116,8 +132,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/awards': typeof AwardsRoute
   '/career-timeline': typeof CareerTimelineRoute
+  '/games': typeof GamesRoute
   '/mentions': typeof MentionsRoute
   '/profile': typeof ProfileRoute
+  '/saves': typeof SavesRoute
   '/stats': typeof StatsRoute
   '/system': typeof SystemRoute
   '/trophies': typeof TrophiesRoute
@@ -132,8 +150,10 @@ export interface FileRouteTypes {
     | '/'
     | '/awards'
     | '/career-timeline'
+    | '/games'
     | '/mentions'
     | '/profile'
+    | '/saves'
     | '/stats'
     | '/system'
     | '/trophies'
@@ -146,8 +166,10 @@ export interface FileRouteTypes {
     | '/'
     | '/awards'
     | '/career-timeline'
+    | '/games'
     | '/mentions'
     | '/profile'
+    | '/saves'
     | '/stats'
     | '/system'
     | '/trophies'
@@ -160,8 +182,10 @@ export interface FileRouteTypes {
     | '/'
     | '/awards'
     | '/career-timeline'
+    | '/games'
     | '/mentions'
     | '/profile'
+    | '/saves'
     | '/stats'
     | '/system'
     | '/trophies'
@@ -175,8 +199,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AwardsRoute: typeof AwardsRoute
   CareerTimelineRoute: typeof CareerTimelineRoute
+  GamesRoute: typeof GamesRoute
   MentionsRoute: typeof MentionsRoute
   ProfileRoute: typeof ProfileRoute
+  SavesRoute: typeof SavesRoute
   StatsRoute: typeof StatsRoute
   SystemRoute: typeof SystemRoute
   TrophiesRoute: typeof TrophiesRoute
@@ -209,6 +235,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StatsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/saves': {
+      id: '/saves'
+      path: '/saves'
+      fullPath: '/saves'
+      preLoaderRoute: typeof SavesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -221,6 +254,13 @@ declare module '@tanstack/react-router' {
       path: '/mentions'
       fullPath: '/mentions'
       preLoaderRoute: typeof MentionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/games': {
+      id: '/games'
+      path: '/games'
+      fullPath: '/games'
+      preLoaderRoute: typeof GamesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/career-timeline': {
@@ -279,8 +319,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AwardsRoute: AwardsRoute,
   CareerTimelineRoute: CareerTimelineRoute,
+  GamesRoute: GamesRoute,
   MentionsRoute: MentionsRoute,
   ProfileRoute: ProfileRoute,
+  SavesRoute: SavesRoute,
   StatsRoute: StatsRoute,
   SystemRoute: SystemRoute,
   TrophiesRoute: TrophiesRoute,

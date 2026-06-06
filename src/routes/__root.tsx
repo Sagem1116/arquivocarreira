@@ -131,15 +131,9 @@ function RootComponent() {
         <div className="flex-1 min-w-0 flex flex-col">
           {hydrated && <TopBar />}
           <main className="flex-1 min-w-0 px-4 md:px-8 py-6 pb-24 md:pb-10 scrollbar-thin transition-colors duration-300 ease-out">
-            {hydrated ? (
-              <div key={path} className="animate-content-fade">
-                <Outlet />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-[60vh] text-muted-foreground">
-                <div className="animate-pulse text-sm tracking-widest">A CARREGAR ARQUIVO…</div>
-              </div>
-            )}
+            <div key={path} className="animate-content-fade">
+              <Outlet />
+            </div>
           </main>
         </div>
         <MobileNav />
