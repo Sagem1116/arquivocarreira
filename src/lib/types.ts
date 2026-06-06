@@ -63,6 +63,7 @@ export interface Season {
   competitions: SeasonCompetition[];
   gallery: SeasonGalleryImage[];
   moments: SeasonMoment[];
+  files?: SeasonFile[];
   createdAt: number;
 }
 
