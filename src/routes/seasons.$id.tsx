@@ -407,6 +407,11 @@ function SeasonDetail() {
             </Button>
           </div>
         </TabsContent>
+
+        {/* FILES */}
+        <TabsContent value="files">
+          <FilesTab draft={draft} save={save} />
+        </TabsContent>
       </Tabs>
 
       {lb && <Lightbox images={lb.images} index={lb.index} onClose={() => setLb(null)} onIndex={() => {}} />}
