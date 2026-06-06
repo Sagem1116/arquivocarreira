@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, Trophy, Plus, X, Image as ImageIcon, Sparkles, Upload, Trash2 } from "lucide-react";
+import { ArrowLeft, Trophy, Plus, X, Image as ImageIcon, Sparkles, Upload, Trash2, FileText, Download, Paperclip } from "lucide-react";
 import { useArchive, uid } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
