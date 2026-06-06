@@ -458,38 +458,91 @@ function fileToDataUrl(file: File): Promise<string> {
 
 function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const files = draft.files || [];
-  const MAX = 25 * 1024 * 1024; // 25MB per file
+  const localFiles = draft.files || [];
+  const [cloudFiles, setCloudFiles] = useState<Array<{
+    id: string; name: string; mime_type: string | null; size: number; storage_path: string; created_at: string;
+  }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState<{ name: string; pct: number } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data, error } = await (supabase.from as any)("season_files")
+        .select("*")
+        .eq("season_id", draft.id)
+        .order("created_at", { ascending: false });
+      if (!cancelled) {
+        if (error) toast.error("Falha a carregar ficheiros da cloud");
+        else setCloudFiles(data || []);
+        setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [draft.id]);
 
   const handleFiles = async (list: FileList | null) => {
     if (!list || list.length === 0) return;
-    const added: import("@/lib/types").SeasonFile[] = [];
+    const { supabase } = await import("@/integrations/supabase/client");
     for (const f of Array.from(list)) {
-      if (f.size > MAX) {
-        toast.error(`${f.name} é demasiado grande (>25MB)`);
+      setUploading({ name: f.name, pct: 0 });
+      const path = `${draft.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${f.name}`;
+      const { error: upErr } = await supabase.storage
+        .from("season-files")
+        .upload(path, f, { contentType: f.type || "application/octet-stream", upsert: false });
+      if (upErr) {
+        toast.error(`Falha a carregar ${f.name}: ${upErr.message}`);
+        setUploading(null);
         continue;
       }
-      try {
-        const dataUrl = await fileToDataUrl(f);
-        added.push({
-          id: uid(),
+      const { data: row, error: insErr } = await (supabase.from as any)("season_files")
+        .insert({
+          season_id: draft.id,
           name: f.name,
-          type: f.type || "application/octet-stream",
+          mime_type: f.type || null,
           size: f.size,
-          dataUrl,
-          addedAt: Date.now(),
-        });
-      } catch {
-        toast.error(`Falha a ler ${f.name}`);
+          storage_path: path,
+        })
+        .select()
+        .single();
+      if (insErr || !row) {
+        toast.error(`Metadados de ${f.name} falharam`);
+        await supabase.storage.from("season-files").remove([path]);
+      } else {
+        setCloudFiles((prev) => [row, ...prev]);
+        toast.success(`${f.name} carregado`);
       }
-    }
-    if (added.length) {
-      save({ files: [...files, ...added] });
-      toast.success(`${added.length} ficheiro(s) adicionado(s)`);
+      setUploading(null);
     }
   };
 
-  const download = (f: import("@/lib/types").SeasonFile) => {
+  const downloadCloud = async (f: { name: string; storage_path: string }) => {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data, error } = await supabase.storage
+      .from("season-files")
+      .createSignedUrl(f.storage_path, 60 * 10, { download: f.name });
+    if (error || !data) return toast.error("Falha a gerar link de download");
+    const a = document.createElement("a");
+    a.href = data.signedUrl;
+    a.download = f.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const removeCloud = async (f: { id: string; storage_path: string }) => {
+    if (!confirm("Apagar este ficheiro?")) return;
+    const { supabase } = await import("@/integrations/supabase/client");
+    await supabase.storage.from("season-files").remove([f.storage_path]);
+    const { error } = await (supabase.from as any)("season_files").delete().eq("id", f.id);
+    if (error) return toast.error("Falha a apagar");
+    setCloudFiles((prev) => prev.filter((x) => x.id !== f.id));
+    toast.success("Ficheiro apagado");
+  };
+
+  const downloadLocal = (f: import("@/lib/types").SeasonFile) => {
     const a = document.createElement("a");
     a.href = f.dataUrl;
     a.download = f.name;
@@ -498,10 +551,10 @@ function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) =
     a.remove();
   };
 
-  const remove = (id: string) => {
-    if (!confirm("Apagar este ficheiro?")) return;
-    save({ files: files.filter((x) => x.id !== id) });
-    toast.success("Ficheiro apagado");
+  const removeLocal = (id: string) => {
+    if (!confirm("Apagar este ficheiro local?")) return;
+    save({ files: localFiles.filter((x) => x.id !== id) });
+    toast.success("Ficheiro local apagado");
   };
 
   return (
@@ -516,9 +569,9 @@ function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) =
         className="cursor-pointer rounded-2xl border-2 border-dashed border-border hover:border-primary/60 hover:bg-muted/20 p-8 text-center transition mb-6"
       >
         <Paperclip className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-        <div className="text-sm font-medium">Carregar ficheiros</div>
+        <div className="text-sm font-medium">Carregar ficheiros para a cloud</div>
         <div className="text-xs text-muted-foreground mt-1">
-          Arrasta para aqui ou clica. Qualquer tipo. Máx 25MB cada. Guardados na app.
+          Arrasta para aqui ou clica. Qualquer tipo e tamanho (saves do FM, vídeos, PDFs…). Guardados na nuvem.
         </div>
         <input
           ref={inputRef}
@@ -532,17 +585,27 @@ function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) =
         />
       </div>
 
-      {files.length === 0 ? (
-        <div className="text-sm text-muted-foreground py-8 text-center">
-          <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          Sem ficheiros nesta temporada.
+      {uploading && (
+        <div className="mb-4 rounded-xl border border-primary/40 bg-primary/5 p-3 text-sm">
+          A carregar <strong>{uploading.name}</strong>…
         </div>
-      ) : (
-        <div className="space-y-2">
-          {files
-            .slice()
-            .sort((a, b) => b.addedAt - a.addedAt)
-            .map((f) => (
+      )}
+
+      {/* Cloud files */}
+      <div className="mb-6">
+        <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">
+          Cloud ({cloudFiles.length})
+        </div>
+        {loading ? (
+          <div className="text-sm text-muted-foreground py-6 text-center">A carregar…</div>
+        ) : cloudFiles.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-6 text-center border border-dashed border-border rounded-xl">
+            <FileText className="h-6 w-6 mx-auto mb-2 opacity-50" />
+            Sem ficheiros na cloud.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {cloudFiles.map((f) => (
               <div
                 key={f.id}
                 className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 hover:border-primary/40 transition"
@@ -553,17 +616,54 @@ function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) =
                 <div className="flex-1 min-w-0">
                   <div className="truncate text-sm font-medium">{f.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {formatBytes(f.size)} · {new Date(f.addedAt).toLocaleDateString()}
+                    {formatBytes(f.size)} · {new Date(f.created_at).toLocaleDateString()}
                   </div>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => download(f)}>
+                <Button size="sm" variant="outline" onClick={() => downloadCloud(f)}>
                   <Download className="h-3.5 w-3.5 mr-1.5" /> Download
                 </Button>
-                <Button size="icon" variant="ghost" onClick={() => remove(f.id)}>
+                <Button size="icon" variant="ghost" onClick={() => removeCloud(f)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Local fallback files (legacy) */}
+      {localFiles.length > 0 && (
+        <div>
+          <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">
+            Locais — fallback ({localFiles.length})
+          </div>
+          <div className="space-y-2">
+            {localFiles
+              .slice()
+              .sort((a, b) => b.addedAt - a.addedAt)
+              .map((f) => (
+                <div
+                  key={f.id}
+                  className="flex items-center gap-3 rounded-xl border border-dashed border-border bg-muted/10 p-3"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground shrink-0">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate text-sm font-medium">{f.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatBytes(f.size)} · {new Date(f.addedAt).toLocaleDateString()} · local
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => downloadLocal(f)}>
+                    <Download className="h-3.5 w-3.5 mr-1.5" /> Download
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => removeLocal(f.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+          </div>
         </div>
       )}
     </div>
