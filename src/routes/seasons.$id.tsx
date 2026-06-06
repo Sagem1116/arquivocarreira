@@ -97,7 +97,7 @@ function SeasonDetail() {
               <Input value={draft.year} onChange={(e) => save({ year: e.target.value })} />
             </Field>
             <div className="md:col-span-2 flex items-center gap-3">
-              <Checkbox checked={!!draft.isPartial} onCheckedChange={(checked) => save({ isPartial: checked })} />
+              <Checkbox checked={!!draft.isPartial} onCheckedChange={(checked) => save({ isPartial: checked === true })} />
               <span className="text-sm text-muted-foreground">Temporada incompleta</span>
             </div>
             <Field label="Posição final">
