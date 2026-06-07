@@ -794,6 +794,7 @@ function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) =
                   }}
                   onDownload={() => downloadCloud(f)}
                   onRemove={() => removeCloud(f)}
+                  onOpenImages={(images, index) => setFilesLb({ images, index })}
                 />
               );
             })}
