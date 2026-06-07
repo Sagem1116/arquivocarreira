@@ -905,8 +905,18 @@ function CloudFileRow({
             accept="image/*"
             className="hidden"
             onChange={(e) => {
-              if (e.target.files && e.target.files.length > 0) void onAddImages(e.target.files);
-              e.target.value = "";
+              const input = e.currentTarget;
+              const files = input.files;
+              if (files && files.length > 0) {
+                const list = Array.from(files);
+                const dt = new DataTransfer();
+                list.forEach((f) => dt.items.add(f));
+                void Promise.resolve(onAddImages(dt.files)).finally(() => {
+                  input.value = "";
+                });
+              } else {
+                input.value = "";
+              }
             }}
           />
           <div className="flex items-center justify-between mb-2">
