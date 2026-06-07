@@ -465,6 +465,7 @@ function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) =
   const fileMeta = useArchive((s) => s.data.fileMeta || {});
   const setFileMeta = useArchive((s) => s.setFileMeta);
   const removeFileMeta = useArchive((s) => s.removeFileMeta);
+  const [filesLb, setFilesLb] = useState<{ images: string[]; index: number } | null>(null);
 
   const [cloudFiles, setCloudFiles] = useState<Array<{
     id: string; name: string; mime_type: string | null; size: number; storage_path: string; created_at: string;
