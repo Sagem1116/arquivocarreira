@@ -1,8 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Download, Gamepad2, LayoutGrid, List, Image as ImageIcon, Trash2, ExternalLink, Link as LinkIcon } from "lucide-react";
+import {
+  Download,
+  Gamepad2,
+  LayoutGrid,
+  List,
+  Image as ImageIcon,
+  Trash2,
+  ExternalLink,
+  Link as LinkIcon,
+  Pencil,
+  Check,
+} from "lucide-react";
 import { useArchive } from "@/lib/store";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Lightbox } from "@/components/Lightbox";
 import {
   fetchAllSeasonFiles,
   downloadFile,
@@ -18,15 +31,16 @@ export const Route = createFileRoute("/games")({
   component: GamesPage,
 });
 
-
 function GamesPage() {
   const fileMeta = useArchive((s) => s.data.fileMeta || {});
+  const setFileMeta = useArchive((s) => s.setFileMeta);
   const removeFileMeta = useArchive((s) => s.removeFileMeta);
   const seasons = useArchive((s) => s.data.seasons);
   const clubs = useArchive((s) => s.data.clubs);
   const [files, setFiles] = useState<CloudSeasonFile[]>([]);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [loading, setLoading] = useState(true);
+  const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
 
   useEffect(() => {
     fetchAllSeasonFiles()
@@ -56,6 +70,10 @@ function GamesPage() {
     }
   };
 
+  const handleRename = (id: string, title: string) => {
+    const meta = fileMeta[id] || { kind: "game" as const, images: [] };
+    setFileMeta(id, { ...meta, title });
+  };
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -96,6 +114,8 @@ function GamesPage() {
               season={seasonMap.get(f.season_id)}
               clubName={clubMap.get(seasonMap.get(f.season_id)?.clubId || "")?.name}
               onDelete={() => handleDelete(f)}
+              onRename={(t) => handleRename(f.id, t)}
+              onOpenLightbox={(images, index) => setLightbox({ images, index })}
             />
           ))}
         </div>
@@ -109,26 +129,95 @@ function GamesPage() {
               season={seasonMap.get(f.season_id)}
               clubName={clubMap.get(seasonMap.get(f.season_id)?.clubId || "")?.name}
               onDelete={() => handleDelete(f)}
+              onRename={(t) => handleRename(f.id, t)}
+              onOpenLightbox={(images, index) => setLightbox({ images, index })}
             />
           ))}
         </div>
       )}
 
+      {lightbox && (
+        <Lightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onIndex={() => {}}
+        />
+      )}
     </div>
   );
 }
 
+function EditableTitle({
+  value,
+  placeholder,
+  onSave,
+  className,
+}: {
+  value: string;
+  placeholder: string;
+  onSave: (v: string) => void;
+  className?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <Input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { onSave(draft.trim()); setEditing(false); }
+            if (e.key === "Escape") { setDraft(value); setEditing(false); }
+          }}
+          placeholder={placeholder}
+          className="h-8 text-sm"
+        />
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 shrink-0"
+          onClick={() => { onSave(draft.trim()); setEditing(false); }}
+          aria-label="Guardar título"
+        >
+          <Check className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className={cn("group flex items-center gap-1.5 text-left w-full", className)}
+      title="Editar título"
+    >
+      <span className={cn("truncate font-semibold", !value && "text-muted-foreground italic font-normal")}>
+        {value || placeholder}
+      </span>
+      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-60 shrink-0" />
+    </button>
+  );
+}
+
 function GameCard({
-  file, meta, season, clubName, onDelete,
+  file, meta, season, clubName, onDelete, onRename, onOpenLightbox,
 }: {
   file: CloudSeasonFile;
-  meta?: { kind: "game" | "save"; images: { path: string; name: string }[] };
+  meta?: { kind: "game" | "save"; title?: string; images: { path: string; name: string }[] };
   season?: { id: string; year: string };
   clubName?: string;
   onDelete: () => void;
+  onRename: (t: string) => void;
+  onOpenLightbox: (images: string[], index: number) => void;
 }) {
   const images = meta?.images || [];
   const link = isLinkFile(file);
+  const title = meta?.title || "";
   return (
     <div className="card-elevated rounded-2xl overflow-hidden flex flex-col">
       {link ? (
@@ -136,7 +225,7 @@ function GameCard({
           <LinkIcon className="h-10 w-10 text-primary/70" />
         </div>
       ) : (
-        <ImageStrip paths={images.map((i) => i.path)} />
+        <ImageStrip paths={images.map((i) => i.path)} onOpen={onOpenLightbox} />
       )}
       <div className="p-4 flex-1 flex flex-col gap-2">
         <div className="text-xs uppercase tracking-widest text-muted-foreground">
@@ -146,7 +235,12 @@ function GameCard({
             </Link>
           ) : "Temporada"}
         </div>
-        <div className="font-semibold truncate" title={file.name}>{file.name}</div>
+        <EditableTitle
+          value={title}
+          placeholder="Adicionar título do jogo…"
+          onSave={onRename}
+        />
+        <div className="text-xs text-muted-foreground truncate" title={file.name}>{file.name}</div>
         <div className="text-xs text-muted-foreground">
           {link ? "Link externo" : `${images.length} imagem(ns)`}
         </div>
@@ -172,17 +266,19 @@ function GameCard({
 }
 
 function GameRow({
-  file, meta, season, clubName, onDelete,
+  file, meta, season, clubName, onDelete, onRename, onOpenLightbox,
 }: {
   file: CloudSeasonFile;
-  meta?: { kind: "game" | "save"; images: { path: string; name: string }[] };
+  meta?: { kind: "game" | "save"; title?: string; images: { path: string; name: string }[] };
   season?: { id: string; year: string };
   clubName?: string;
   onDelete: () => void;
+  onRename: (t: string) => void;
+  onOpenLightbox: (images: string[], index: number) => void;
 }) {
-
   const images = meta?.images || [];
   const link = isLinkFile(file);
+  const title = meta?.title || "";
   return (
     <div className="card-elevated rounded-2xl p-4 flex flex-col md:flex-row gap-4">
       <div className="md:w-64 shrink-0">
@@ -191,7 +287,7 @@ function GameRow({
             <LinkIcon className="h-8 w-8 text-primary/70" />
           </div>
         ) : (
-          <ImageStrip paths={images.map((i) => i.path)} compact />
+          <ImageStrip paths={images.map((i) => i.path)} compact onOpen={onOpenLightbox} />
         )}
       </div>
       <div className="flex-1 min-w-0 flex flex-col gap-1">
@@ -202,7 +298,12 @@ function GameRow({
             </Link>
           ) : "Temporada"}
         </div>
-        <div className="font-semibold truncate" title={file.name}>{file.name}</div>
+        <EditableTitle
+          value={title}
+          placeholder="Adicionar título do jogo…"
+          onSave={onRename}
+        />
+        <div className="text-xs text-muted-foreground truncate" title={file.name}>{file.name}</div>
         <div className="text-xs text-muted-foreground truncate">
           {link ? file.storage_path : `${images.length} imagem(ns)`}
         </div>
@@ -223,16 +324,23 @@ function GameRow({
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
-
     </div>
   );
 }
 
-function ImageStrip({ paths, compact }: { paths: string[]; compact?: boolean }) {
+function ImageStrip({
+  paths,
+  compact,
+  onOpen,
+}: {
+  paths: string[];
+  compact?: boolean;
+  onOpen?: (images: string[], index: number) => void;
+}) {
   const [urls, setUrls] = useState<string[]>([]);
   useEffect(() => {
     let cancelled = false;
-    Promise.all(paths.slice(0, 4).map((p) => signedUrl(p).catch(() => null)))
+    Promise.all(paths.map((p) => signedUrl(p).catch(() => null)))
       .then((res) => {
         if (!cancelled) setUrls(res.filter(Boolean) as string[]);
       });
@@ -246,11 +354,43 @@ function ImageStrip({ paths, compact }: { paths: string[]; compact?: boolean }) 
       </div>
     );
   }
+
+  const preview = urls.slice(0, 4);
+  const extra = urls.length - preview.length;
+
   return (
-    <div className={cn("grid gap-1", urls.length > 1 ? "grid-cols-2" : "grid-cols-1", compact ? "rounded-lg overflow-hidden" : "")}>
-      {urls.map((u, i) => (
-        <img key={i} src={u} alt="" className={cn("w-full object-cover", compact ? "aspect-square" : "aspect-square")} />
-      ))}
+    <div
+      className={cn(
+        "grid gap-1",
+        preview.length === 1 ? "grid-cols-1" : "grid-cols-2",
+        compact ? "rounded-lg overflow-hidden" : "",
+      )}
+    >
+      {preview.map((u, i) => {
+        const isLast = i === preview.length - 1 && extra > 0;
+        return (
+          <button
+            type="button"
+            key={i}
+            onClick={() => onOpen?.(urls, i)}
+            className="relative block overflow-hidden group"
+          >
+            <img
+              src={u}
+              alt=""
+              className={cn(
+                "w-full object-cover transition-transform group-hover:scale-105",
+                compact ? "aspect-square" : "aspect-square",
+              )}
+            />
+            {isLast && (
+              <div className="absolute inset-0 bg-black/60 grid place-items-center text-white font-semibold">
+                +{extra}
+              </div>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
