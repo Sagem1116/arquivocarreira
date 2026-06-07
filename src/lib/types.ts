@@ -107,6 +107,7 @@ export interface Mention {
 
 export interface CloudFileMeta {
   kind: "game" | "save";
+  title?: string;
   images: { path: string; name: string }[];
 }
 
