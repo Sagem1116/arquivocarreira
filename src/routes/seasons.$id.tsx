@@ -837,6 +837,14 @@ function FilesTab({ draft, save }: { draft: Season; save: (p: Partial<Season>) =
           </div>
         </div>
       )}
+    {filesLb && (
+      <Lightbox
+        images={filesLb.images}
+        index={filesLb.index}
+        onClose={() => setFilesLb(null)}
+        onIndex={() => {}}
+      />
+    )}
     </div>
   );
 }
@@ -849,6 +857,7 @@ function CloudFileRow({
   onRemoveImage,
   onDownload,
   onRemove,
+  onOpenImages,
 }: {
   file: { id: string; name: string; size: number; created_at: string; storage_path: string; mime_type: string | null };
   meta: import("@/lib/types").CloudFileMeta;
@@ -857,6 +866,7 @@ function CloudFileRow({
   onRemoveImage: (path: string) => void | Promise<void>;
   onDownload: () => void;
   onRemove: () => void;
+  onOpenImages: (images: string[], index: number) => void;
 }) {
   const imageInputId = useId();
   const isLink = file.mime_type === "link" || /^https?:\/\//i.test(file.storage_path);
