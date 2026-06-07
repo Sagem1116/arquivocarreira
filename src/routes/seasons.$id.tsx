@@ -942,11 +942,11 @@ function CloudFileRow({
             </Button>
           </div>
           {meta.images.length > 0 && (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-              {meta.images.map((img) => (
-                <GameImageThumb key={img.path} path={img.path} onRemove={() => onRemoveImage(img.path)} />
-              ))}
-            </div>
+            <GameImagesGrid
+              images={meta.images}
+              onRemoveImage={onRemoveImage}
+              onOpen={onOpenImages}
+            />
           )}
         </div>
       )}
@@ -954,31 +954,66 @@ function CloudFileRow({
   );
 }
 
-function GameImageThumb({ path, onRemove }: { path: string; onRemove: () => void }) {
-  const [url, setUrl] = useState<string>();
+function GameImagesGrid({
+  images,
+  onRemoveImage,
+  onOpen,
+}: {
+  images: { path: string; name: string }[];
+  onRemoveImage: (path: string) => void | Promise<void>;
+  onOpen: (images: string[], index: number) => void;
+}) {
+  const [urls, setUrls] = useState<Record<string, string>>({});
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const { signedUrl } = await import("@/lib/season-files");
-      try {
-        const u = await signedUrl(path);
-        if (!cancelled) setUrl(u);
-      } catch {
-        /* noop */
-      }
+      const entries = await Promise.all(
+        images.map(async (img) => {
+          try {
+            const u = await signedUrl(img.path);
+            return [img.path, u] as const;
+          } catch {
+            return [img.path, ""] as const;
+          }
+        }),
+      );
+      if (!cancelled) setUrls(Object.fromEntries(entries.filter(([, u]) => u)));
     })();
     return () => { cancelled = true; };
-  }, [path]);
+  }, [images.map((i) => i.path).join("|")]);
+
+  const ordered = images.map((i) => urls[i.path]).filter(Boolean);
+
   return (
-    <div className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/30">
-      {url && <img src={url} alt="" className="h-full w-full object-cover" />}
-      <button
-        type="button"
-        onClick={onRemove}
-        className="absolute top-1 right-1 rounded-full bg-background/80 p-1 opacity-0 group-hover:opacity-100 transition hover:bg-destructive"
-      >
-        <X className="h-3 w-3" />
-      </button>
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+      {images.map((img, i) => {
+        const url = urls[img.path];
+        const lbIndex = ordered.indexOf(url);
+        return (
+          <div
+            key={img.path}
+            className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/30"
+          >
+            {url && (
+              <button
+                type="button"
+                onClick={() => onOpen(ordered, lbIndex >= 0 ? lbIndex : 0)}
+                className="block h-full w-full"
+              >
+                <img src={url} alt="" className="h-full w-full object-cover transition group-hover:scale-105" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onRemoveImage(img.path)}
+              className="absolute top-1 right-1 rounded-full bg-background/80 p-1 opacity-0 group-hover:opacity-100 transition hover:bg-destructive z-10"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }
