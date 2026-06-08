@@ -1,31 +1,125 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef } from "react";
-import { Settings, Download, Upload, Trash2, FileText } from "lucide-react";
+import { useRef, useState } from "react";
+import { Settings, Download, Upload, Trash2, FileText, Loader2 } from "lucide-react";
 import { useArchive } from "@/lib/store";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { fetchAllSeasonFiles, isLinkFile, signedUrl } from "@/lib/season-files";
 
 export const Route = createFileRoute("/system")({
   component: System,
   head: () => ({ meta: [{ title: "Sistema — FM Career Archive" }] }),
 });
 
+type ExportedImage = { path: string; name: string; dataBase64: string };
+type ExportedCloudFile = {
+  id: string;
+  season_id: string;
+  name: string;
+  mime_type: string | null;
+  size: number;
+  storage_path: string;
+  created_at: string;
+  isLink: boolean;
+  dataBase64?: string;
+  images?: ExportedImage[];
+};
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < buf.length; i += chunk) {
+    bin += String.fromCharCode.apply(null, Array.from(buf.subarray(i, i + chunk)) as any);
+  }
+  return btoa(bin);
+}
+
+function base64ToBlob(b64: string, type?: string): Blob {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: type || "application/octet-stream" });
+}
+
 function System() {
   const data = useArchive((s) => s.data);
   const importJSON = useArchive((s) => s.importJSON);
   const reset = useArchive((s) => s.reset);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState<string | null>(null);
 
-  const exportJSON = () => {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `fm-archive-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Backup exportado");
+  const exportJSON = async () => {
+    setBusy("export");
+    try {
+      const cloudRows = await fetchAllSeasonFiles();
+      const fileMeta = data.fileMeta || {};
+      const cloudFiles: ExportedCloudFile[] = [];
+      for (const row of cloudRows) {
+        const link = isLinkFile(row);
+        const exp: ExportedCloudFile = { ...row, isLink: link };
+        if (!link) {
+          try {
+            const url = await signedUrl(row.storage_path);
+            const blob = await (await fetch(url)).blob();
+            exp.dataBase64 = await blobToBase64(blob);
+          } catch (e) { console.warn("skip file", row.storage_path, e); }
+        }
+        const meta = fileMeta[row.id];
+        if (meta?.images?.length) {
+          const imgs: ExportedImage[] = [];
+          for (const img of meta.images) {
+            try {
+              const url = await signedUrl(img.path);
+              const blob = await (await fetch(url)).blob();
+              imgs.push({ path: img.path, name: img.name, dataBase64: await blobToBase64(blob) });
+            } catch (e) { console.warn("skip image", img.path, e); }
+          }
+          exp.images = imgs;
+        }
+        cloudFiles.push(exp);
+      }
+      const payload = { ...data, cloudFiles };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `fm-archive-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Backup exportado (${cloudFiles.length} ficheiros)`);
+    } catch (e: any) {
+      toast.error(e.message || "Erro a exportar");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const restoreCloud = async (cloudFiles: ExportedCloudFile[]) => {
+    for (const f of cloudFiles) {
+      if (!f.isLink && f.dataBase64) {
+        const blob = base64ToBlob(f.dataBase64, f.mime_type || undefined);
+        await supabase.storage.from("season-files").upload(f.storage_path, blob, {
+          contentType: f.mime_type || "application/octet-stream",
+          upsert: true,
+        });
+      }
+      for (const img of f.images || []) {
+        const blob = base64ToBlob(img.dataBase64);
+        await supabase.storage.from("season-files").upload(img.path, blob, { upsert: true });
+      }
+      await (supabase.from as any)("season_files").upsert({
+        id: f.id,
+        season_id: f.season_id,
+        name: f.name,
+        mime_type: f.mime_type,
+        size: f.size,
+        storage_path: f.storage_path,
+        created_at: f.created_at,
+      });
+    }
   };
 
   const exportPDF = () => {
