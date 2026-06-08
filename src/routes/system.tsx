@@ -167,31 +167,46 @@ function System() {
 
       <div className="grid md:grid-cols-2 gap-5">
         <Tile icon={<Download className="h-5 w-5" />} title="Exportar JSON"
-          description="Backup completo da carreira (clubes, temporadas, troféus, imagens).">
-          <Button onClick={exportJSON} className="w-full"><Download className="h-4 w-4 mr-1.5" /> Descarregar</Button>
+          description="Backup completo (clubes, temporadas, troféus, ficheiros, links e imagens de jogos/saves).">
+          <Button onClick={exportJSON} disabled={busy !== null} className="w-full">
+            {busy === "export" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Download className="h-4 w-4 mr-1.5" />}
+            {busy === "export" ? "A exportar…" : "Descarregar"}
+          </Button>
         </Tile>
 
         <Tile icon={<Upload className="h-5 w-5" />} title="Importar JSON"
-          description="Restaurar a partir de um backup anterior.">
+          description="Restaurar a partir de um backup anterior (inclui ficheiros, links e imagens).">
           <input ref={fileRef} type="file" accept="application/json" className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0]; if (!f) return;
               const r = new FileReader();
-              r.onload = () => {
+              r.onload = async () => {
                 try {
                   const parsed = JSON.parse(r.result as string);
                   if (!parsed.version) throw new Error("Backup inválido");
-                  if (confirm("Substituir os dados atuais pelo backup?")) {
-                    importJSON(parsed); toast.success("Backup importado");
+                  if (!confirm("Substituir os dados atuais pelo backup?")) return;
+                  setBusy("import");
+                  const { cloudFiles, ...archive } = parsed as any;
+                  importJSON(archive);
+                  if (Array.isArray(cloudFiles) && cloudFiles.length) {
+                    await restoreCloud(cloudFiles as ExportedCloudFile[]);
                   }
-                } catch (err: any) { toast.error(err.message || "Erro a ler ficheiro"); }
+                  toast.success(`Backup importado (${cloudFiles?.length || 0} ficheiros)`);
+                } catch (err: any) {
+                  toast.error(err.message || "Erro a ler ficheiro");
+                } finally {
+                  setBusy(null);
+                  if (fileRef.current) fileRef.current.value = "";
+                }
               };
               r.readAsText(f);
             }} />
-          <Button onClick={() => fileRef.current?.click()} variant="outline" className="w-full">
-            <Upload className="h-4 w-4 mr-1.5" /> Selecionar ficheiro
+          <Button onClick={() => fileRef.current?.click()} variant="outline" className="w-full" disabled={busy !== null}>
+            {busy === "import" ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Upload className="h-4 w-4 mr-1.5" />}
+            {busy === "import" ? "A importar…" : "Selecionar ficheiro"}
           </Button>
         </Tile>
+
 
         <Tile icon={<FileText className="h-5 w-5" />} title="Exportar PDF"
           description="Resumo bonito da tua carreira pronto a imprimir.">
