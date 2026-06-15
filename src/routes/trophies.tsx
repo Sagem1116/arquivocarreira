@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Trophy,
   Plus,
@@ -13,6 +13,10 @@ import {
   List,
   Sparkles,
   CalendarDays,
+  Tag,
+  Settings2,
+  Upload,
+  Trash2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useArchive } from "@/lib/store";
@@ -23,7 +27,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ImageUpload } from "@/components/ImageUpload";
+import { ImageUpload, readFilesAsBase64 } from "@/components/ImageUpload";
+import { Lightbox } from "@/components/Lightbox";
 import {
   Dialog,
   DialogContent,
