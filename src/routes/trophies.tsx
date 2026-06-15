@@ -136,43 +136,63 @@ function Trophies() {
         subtitle={`${trophies.length} títulos no museu`}
         icon={<Trophy className="h-5 w-5" />}
         actions={
-          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
-            <DialogTrigger asChild>
-              <Button disabled={clubs.length === 0}>
-                <Plus className="h-4 w-4 mr-1" /> Adicionar
-              </Button>
-            </DialogTrigger>
-            <TrophyDialog
-              trophy={editing}
-              clubs={clubs}
-              onSave={(data) => {
-                if (editing) update(editing.id, data);
-                else add(data);
-                toast.success(editing ? "Atualizado" : "Adicionado");
-                setOpen(false); setEditing(null);
-              }}
-              onDelete={editing ? () => {
-                if (confirm("Apagar troféu?")) {
-                  del(editing.id); toast.success("Apagado");
+          <div className="flex gap-2">
+            <Dialog open={catOpen} onOpenChange={setCatOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Settings2 className="h-4 w-4 mr-1" /> Categorias
+                </Button>
+              </DialogTrigger>
+              <CategoriesDialog
+                categories={categories}
+                onAdd={addCategory}
+                onRemove={removeCategory}
+                onRename={renameCategory}
+              />
+            </Dialog>
+            <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
+              <DialogTrigger asChild>
+                <Button disabled={clubs.length === 0}>
+                  <Plus className="h-4 w-4 mr-1" /> Adicionar
+                </Button>
+              </DialogTrigger>
+              <TrophyDialog
+                trophy={editing}
+                clubs={clubs}
+                categories={categories}
+                onAddCategory={addCategory}
+                onSave={(data) => {
+                  if (editing) update(editing.id, data);
+                  else add(data);
+                  toast.success(editing ? "Atualizado" : "Adicionado");
                   setOpen(false); setEditing(null);
-                }
-              } : undefined}
-              onDuplicate={editing ? () => {
-                add({
-                  competition: editing.competition,
-                  year: editing.year,
-                  clubId: editing.clubId,
-                  country: editing.country,
-                  image: editing.image,
-                  summary: editing.summary,
-                });
-                toast.success("Duplicado");
-                setOpen(false); setEditing(null);
-              } : undefined}
-            />
-          </Dialog>
+                }}
+                onDelete={editing ? () => {
+                  if (confirm("Apagar troféu?")) {
+                    del(editing.id); toast.success("Apagado");
+                    setOpen(false); setEditing(null);
+                  }
+                } : undefined}
+                onDuplicate={editing ? () => {
+                  add({
+                    competition: editing.competition,
+                    year: editing.year,
+                    clubId: editing.clubId,
+                    country: editing.country,
+                    image: editing.image,
+                    summary: editing.summary,
+                    category: editing.category,
+                    images: editing.images,
+                  });
+                  toast.success("Duplicado");
+                  setOpen(false); setEditing(null);
+                } : undefined}
+              />
+            </Dialog>
+          </div>
         }
       />
+
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
         <StatCard label="Troféus" value={trophies.length} icon={Trophy} accent />
