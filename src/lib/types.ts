@@ -84,6 +84,8 @@ export interface Trophy {
   country?: string;
   image?: string;
   summary?: string;
+  category?: string;
+  images?: string[];
 }
 
 export interface Award {
@@ -121,6 +123,7 @@ export interface ArchiveData {
   favorites: ID[];
   // Local metadata for cloud season_files (id → meta)
   fileMeta?: Record<string, CloudFileMeta>;
+  trophyCategories?: string[];
   version: 1;
 }
 
