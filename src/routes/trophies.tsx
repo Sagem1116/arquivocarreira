@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Trophy,
   Plus,
@@ -13,6 +13,10 @@ import {
   List,
   Sparkles,
   CalendarDays,
+  Tag,
+  Settings2,
+  Upload,
+  Trash2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useArchive } from "@/lib/store";
@@ -23,7 +27,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ImageUpload } from "@/components/ImageUpload";
+import { ImageUpload, readFilesAsBase64 } from "@/components/ImageUpload";
+import { Lightbox } from "@/components/Lightbox";
 import {
   Dialog,
   DialogContent,
@@ -50,19 +55,25 @@ function Trophies() {
   const trophies = useArchive((s) => s.data.trophies);
   const clubs = useArchive((s) => s.data.clubs);
   const favorites = useArchive((s) => s.data.favorites);
+  const categories = useArchive((s) => s.data.trophyCategories || []);
   const add = useArchive((s) => s.addTrophy);
   const update = useArchive((s) => s.updateTrophy);
   const del = useArchive((s) => s.deleteTrophy);
   const toggleFavorite = useArchive((s) => s.toggleFavorite);
+  const addCategory = useArchive((s) => s.addTrophyCategory);
+  const removeCategory = useArchive((s) => s.removeTrophyCategory);
+  const renameCategory = useArchive((s) => s.renameTrophyCategory);
 
   const [q, setQ] = useState("");
   const [clubFilter, setClubFilter] = useState("all");
   const [yearFilter, setYearFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortKey, setSortKey] = useState<"year" | "club" | "competition">("year");
   const [sortDirection, setSortDirection] = useState<"desc" | "asc">("desc");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [editing, setEditing] = useState<TrophyT | null>(null);
   const [open, setOpen] = useState(false);
+  const [catOpen, setCatOpen] = useState(false);
 
   const years = useMemo(
     () => Array.from(new Set(trophies.map((t) => t.year))).sort((a, b) => b.localeCompare(a, undefined, { numeric: true })),
@@ -83,10 +94,15 @@ function Trophies() {
     () => trophies.filter((t) => {
       if (clubFilter !== "all" && t.clubId !== clubFilter) return false;
       if (yearFilter !== "all" && t.year !== yearFilter) return false;
-      if (q && ![t.competition, t.year, t.country].join(" ").toLowerCase().includes(q.toLowerCase())) return false;
+      if (categoryFilter !== "all") {
+        if (categoryFilter === "__none__") {
+          if (t.category) return false;
+        } else if (t.category !== categoryFilter) return false;
+      }
+      if (q && ![t.competition, t.year, t.country, t.category].filter(Boolean).join(" ").toLowerCase().includes(q.toLowerCase())) return false;
       return true;
     }),
-    [trophies, clubFilter, yearFilter, q],
+    [trophies, clubFilter, yearFilter, categoryFilter, q],
   );
 
   const sorted = useMemo(() => {
@@ -120,43 +136,63 @@ function Trophies() {
         subtitle={`${trophies.length} títulos no museu`}
         icon={<Trophy className="h-5 w-5" />}
         actions={
-          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
-            <DialogTrigger asChild>
-              <Button disabled={clubs.length === 0}>
-                <Plus className="h-4 w-4 mr-1" /> Adicionar
-              </Button>
-            </DialogTrigger>
-            <TrophyDialog
-              trophy={editing}
-              clubs={clubs}
-              onSave={(data) => {
-                if (editing) update(editing.id, data);
-                else add(data);
-                toast.success(editing ? "Atualizado" : "Adicionado");
-                setOpen(false); setEditing(null);
-              }}
-              onDelete={editing ? () => {
-                if (confirm("Apagar troféu?")) {
-                  del(editing.id); toast.success("Apagado");
+          <div className="flex gap-2">
+            <Dialog open={catOpen} onOpenChange={setCatOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Settings2 className="h-4 w-4 mr-1" /> Categorias
+                </Button>
+              </DialogTrigger>
+              <CategoriesDialog
+                categories={categories}
+                onAdd={addCategory}
+                onRemove={removeCategory}
+                onRename={renameCategory}
+              />
+            </Dialog>
+            <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
+              <DialogTrigger asChild>
+                <Button disabled={clubs.length === 0}>
+                  <Plus className="h-4 w-4 mr-1" /> Adicionar
+                </Button>
+              </DialogTrigger>
+              <TrophyDialog
+                trophy={editing}
+                clubs={clubs}
+                categories={categories}
+                onAddCategory={addCategory}
+                onSave={(data) => {
+                  if (editing) update(editing.id, data);
+                  else add(data);
+                  toast.success(editing ? "Atualizado" : "Adicionado");
                   setOpen(false); setEditing(null);
-                }
-              } : undefined}
-              onDuplicate={editing ? () => {
-                add({
-                  competition: editing.competition,
-                  year: editing.year,
-                  clubId: editing.clubId,
-                  country: editing.country,
-                  image: editing.image,
-                  summary: editing.summary,
-                });
-                toast.success("Duplicado");
-                setOpen(false); setEditing(null);
-              } : undefined}
-            />
-          </Dialog>
+                }}
+                onDelete={editing ? () => {
+                  if (confirm("Apagar troféu?")) {
+                    del(editing.id); toast.success("Apagado");
+                    setOpen(false); setEditing(null);
+                  }
+                } : undefined}
+                onDuplicate={editing ? () => {
+                  add({
+                    competition: editing.competition,
+                    year: editing.year,
+                    clubId: editing.clubId,
+                    country: editing.country,
+                    image: editing.image,
+                    summary: editing.summary,
+                    category: editing.category,
+                    images: editing.images,
+                  });
+                  toast.success("Duplicado");
+                  setOpen(false); setEditing(null);
+                } : undefined}
+              />
+            </Dialog>
+          </div>
         }
       />
+
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
         <StatCard label="Troféus" value={trophies.length} icon={Trophy} accent />
@@ -189,7 +225,15 @@ function Trophies() {
           </SelectContent>
         </Select>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-full"><Tag className="h-3 w-3 mr-1" /><SelectValue placeholder="Categoria" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as categorias</SelectItem>
+              <SelectItem value="__none__">Sem categoria</SelectItem>
+              {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Select value={yearFilter} onValueChange={setYearFilter}>
             <SelectTrigger className="w-full"><SelectValue placeholder="Ano" /></SelectTrigger>
             <SelectContent>
@@ -231,6 +275,7 @@ function Trophies() {
           </Button>
         </div>
       </div>
+
 
       {clubs.length === 0 ? (
         <EmptyState icon={<Trophy className="h-6 w-6" />} title="Cria primeiro um clube" />
@@ -279,6 +324,7 @@ function Trophies() {
                   <div className="font-semibold text-lg leading-tight line-clamp-2">{t.competition}</div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <ClubBadge club={c} size="sm" />
+                    {t.category && <Badge>{t.category}</Badge>}
                     {t.country && <Badge variant="outline">{t.country}</Badge>}
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-3">{t.summary || "Sem resumo do troféu"}</p>
@@ -306,7 +352,7 @@ function Trophies() {
                     <div className="text-sm uppercase tracking-[0.3em] text-muted-foreground">{t.year}</div>
                     <div className="font-semibold text-xl mt-2">{t.competition}</div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <button
                       type="button"
                       onClick={(event) => { event.stopPropagation(); toggleFavorite(t.id); }}
@@ -315,6 +361,7 @@ function Trophies() {
                     >
                       {favorite ? <Star className="h-4 w-4" /> : <StarOff className="h-4 w-4" />}
                     </button>
+                    {t.category && <Badge>{t.category}</Badge>}
                     <Badge variant="outline">{c?.name || "Clube"}</Badge>
                   </div>
                 </div>
@@ -332,35 +379,40 @@ function Trophies() {
   );
 }
 
-function TrophyDialog({ trophy, clubs, onSave, onDelete, onDuplicate }: {
+function TrophyDialog({ trophy, clubs, categories, onAddCategory, onSave, onDelete, onDuplicate }: {
   trophy: TrophyT | null;
   clubs: import("@/lib/types").Club[];
+  categories: string[];
+  onAddCategory: (name: string) => void;
   onSave: (t: Omit<TrophyT, "id">) => void;
   onDelete?: () => void;
   onDuplicate?: () => void;
 }) {
-  const [form, setForm] = useState<Omit<TrophyT, "id">>(trophy || {
+  const emptyForm = (): Omit<TrophyT, "id"> => ({
     competition: "",
     year: "",
     clubId: clubs[0]?.id || "",
     country: "",
     image: "",
     summary: "",
+    category: "",
+    images: [],
   });
+  const [form, setForm] = useState<Omit<TrophyT, "id">>(trophy ? { ...trophy, images: trophy.images || [] } : emptyForm());
+  const [lbIndex, setLbIndex] = useState<number | null>(null);
+  const [newCat, setNewCat] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setForm(trophy || {
-      competition: "",
-      year: "",
-      clubId: clubs[0]?.id || "",
-      country: "",
-      image: "",
-      summary: "",
-    });
+    setForm(trophy ? { ...trophy, images: trophy.images || [] } : emptyForm());
+    setLbIndex(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trophy, clubs]);
 
+  const images = form.images || [];
+
   return (
-    <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto scrollbar-thin">
+    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-thin">
       <DialogHeader><DialogTitle>{trophy ? "Editar troféu" : "Novo troféu"}</DialogTitle></DialogHeader>
       <div className="space-y-3">
         <ImageUpload value={form.image} onChange={(v) => setForm({ ...form, image: v })} aspect="square" label="Imagem do troféu" />
@@ -375,6 +427,89 @@ function TrophyDialog({ trophy, clubs, onSave, onDelete, onDuplicate }: {
             <Input value={form.country || ""} onChange={(e) => setForm({ ...form, country: e.target.value })} />
           </Field>
         </div>
+        <Field label="Categoria">
+          <div className="flex gap-2">
+            <Select
+              value={form.category || "__none__"}
+              onValueChange={(v) => setForm({ ...form, category: v === "__none__" ? "" : v })}
+            >
+              <SelectTrigger className="flex-1"><SelectValue placeholder="Sem categoria" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Sem categoria</SelectItem>
+                {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Input
+              placeholder="Nova categoria"
+              value={newCat}
+              onChange={(e) => setNewCat(e.target.value)}
+              className="w-40"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const n = newCat.trim();
+                if (!n) return;
+                onAddCategory(n);
+                setForm({ ...form, category: n });
+                setNewCat("");
+              }}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </Field>
+        <Field label="Resumo">
+          <Textarea rows={3} value={form.summary || ""} onChange={(e) => setForm({ ...form, summary: e.target.value })} />
+        </Field>
+
+        <Field label="Galeria de imagens">
+          <div className="space-y-2">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={async (e) => {
+                const arr = await readFilesAsBase64(e.target.files);
+                if (arr.length) setForm({ ...form, images: [...images, ...arr] });
+                if (fileRef.current) fileRef.current.value = "";
+              }}
+            />
+            <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+              <Upload className="h-3.5 w-3.5 mr-1" /> Carregar imagens
+            </Button>
+            {images.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Sem imagens. Carrega fotos para criar a galeria deste troféu.</p>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {images.map((src, i) => (
+                  <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border border-border">
+                    <button
+                      type="button"
+                      onClick={() => setLbIndex(i)}
+                      className="absolute inset-0"
+                      aria-label="Abrir imagem"
+                    >
+                      <img src={src} alt="" className="h-full w-full object-cover" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, images: images.filter((_, j) => j !== i) })}
+                      className="absolute top-1 right-1 rounded-full bg-background/80 p-1 opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition"
+                      aria-label="Remover imagem"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Field>
+
         <Field label="Clube">
           <Select value={form.clubId} onValueChange={(v) => setForm({ ...form, clubId: v })}>
             <SelectTrigger><SelectValue placeholder="Escolher clube" /></SelectTrigger>
@@ -383,9 +518,7 @@ function TrophyDialog({ trophy, clubs, onSave, onDelete, onDuplicate }: {
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Resumo">
-          <Textarea rows={3} value={form.summary || ""} onChange={(e) => setForm({ ...form, summary: e.target.value })} />
-        </Field>
+
         <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-between sm:items-center">
           <div className="flex flex-wrap gap-2">
             {onDelete ? <Button variant="destructive" onClick={onDelete}>Apagar</Button> : null}
@@ -397,9 +530,89 @@ function TrophyDialog({ trophy, clubs, onSave, onDelete, onDuplicate }: {
           }}>Guardar</Button>
         </div>
       </div>
+      {lbIndex !== null && images.length > 0 && (
+        <Lightbox
+          images={images}
+          index={lbIndex}
+          onClose={() => setLbIndex(null)}
+          onIndex={() => {}}
+        />
+      )}
     </DialogContent>
   );
 }
+
+function CategoriesDialog({
+  categories,
+  onAdd,
+  onRemove,
+  onRename,
+}: {
+  categories: string[];
+  onAdd: (name: string) => void;
+  onRemove: (name: string) => void;
+  onRename: (oldName: string, newName: string) => void;
+}) {
+  const [newName, setNewName] = useState("");
+  return (
+    <DialogContent className="max-w-md">
+      <DialogHeader><DialogTitle>Categorias de troféus</DialogTitle></DialogHeader>
+      <div className="space-y-3">
+        <div className="flex gap-2">
+          <Input
+            placeholder="Nome da categoria"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const n = newName.trim();
+                if (n) { onAdd(n); setNewName(""); }
+              }
+            }}
+          />
+          <Button
+            onClick={() => {
+              const n = newName.trim();
+              if (!n) return;
+              onAdd(n);
+              setNewName("");
+            }}
+          >
+            <Plus className="h-4 w-4 mr-1" /> Adicionar
+          </Button>
+        </div>
+        {categories.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sem categorias.</p>
+        ) : (
+          <ul className="space-y-2">
+            {categories.map((c) => (
+              <li key={c} className="flex items-center gap-2">
+                <Input
+                  defaultValue={c}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    if (v && v !== c) onRename(c, v);
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    if (confirm(`Remover categoria "${c}"?`)) onRemove(c);
+                  }}
+                  aria-label="Remover"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </DialogContent>
+  );
+}
+
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div className="space-y-1.5"><Label className="text-xs uppercase tracking-widest text-muted-foreground">{label}</Label>{children}</div>;

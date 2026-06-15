@@ -22,6 +22,7 @@ const initial: ArchiveData = {
   mentions: [],
   favorites: [],
   fileMeta: {},
+  trophyCategories: ["Liga", "Taça", "Supertaça", "Internacional"],
   version: 1,
 };
 
@@ -61,6 +62,10 @@ type Store = {
 
   setFileMeta: (id: string, meta: import("./types").CloudFileMeta) => void;
   removeFileMeta: (id: string) => void;
+
+  addTrophyCategory: (name: string) => void;
+  removeTrophyCategory: (name: string) => void;
+  renameTrophyCategory: (oldName: string, newName: string) => void;
 
   importJSON: (data: ArchiveData) => void;
   reset: () => void;
@@ -211,6 +216,31 @@ export const useArchive = create<Store>((set, get) => {
         const next = { ...d.fileMeta };
         delete next[id];
         d.fileMeta = next;
+      }),
+
+    addTrophyCategory: (name) =>
+      update((d) => {
+        const n = name.trim();
+        if (!n) return;
+        const list = d.trophyCategories || [];
+        if (list.includes(n)) return;
+        d.trophyCategories = [...list, n];
+      }),
+    removeTrophyCategory: (name) =>
+      update((d) => {
+        d.trophyCategories = (d.trophyCategories || []).filter((c) => c !== name);
+        d.trophies = d.trophies.map((t) =>
+          t.category === name ? { ...t, category: undefined } : t,
+        );
+      }),
+    renameTrophyCategory: (oldName, newName) =>
+      update((d) => {
+        const n = newName.trim();
+        if (!n) return;
+        d.trophyCategories = (d.trophyCategories || []).map((c) => (c === oldName ? n : c));
+        d.trophies = d.trophies.map((t) =>
+          t.category === oldName ? { ...t, category: n } : t,
+        );
       }),
 
 
