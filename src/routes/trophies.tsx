@@ -225,7 +225,15 @@ function Trophies() {
           </SelectContent>
         </Select>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-full"><Tag className="h-3 w-3 mr-1" /><SelectValue placeholder="Categoria" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as categorias</SelectItem>
+              <SelectItem value="__none__">Sem categoria</SelectItem>
+              {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Select value={yearFilter} onValueChange={setYearFilter}>
             <SelectTrigger className="w-full"><SelectValue placeholder="Ano" /></SelectTrigger>
             <SelectContent>
@@ -267,6 +275,7 @@ function Trophies() {
           </Button>
         </div>
       </div>
+
 
       {clubs.length === 0 ? (
         <EmptyState icon={<Trophy className="h-6 w-6" />} title="Cria primeiro um clube" />
