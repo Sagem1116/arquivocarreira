@@ -55,19 +55,25 @@ function Trophies() {
   const trophies = useArchive((s) => s.data.trophies);
   const clubs = useArchive((s) => s.data.clubs);
   const favorites = useArchive((s) => s.data.favorites);
+  const categories = useArchive((s) => s.data.trophyCategories || []);
   const add = useArchive((s) => s.addTrophy);
   const update = useArchive((s) => s.updateTrophy);
   const del = useArchive((s) => s.deleteTrophy);
   const toggleFavorite = useArchive((s) => s.toggleFavorite);
+  const addCategory = useArchive((s) => s.addTrophyCategory);
+  const removeCategory = useArchive((s) => s.removeTrophyCategory);
+  const renameCategory = useArchive((s) => s.renameTrophyCategory);
 
   const [q, setQ] = useState("");
   const [clubFilter, setClubFilter] = useState("all");
   const [yearFilter, setYearFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortKey, setSortKey] = useState<"year" | "club" | "competition">("year");
   const [sortDirection, setSortDirection] = useState<"desc" | "asc">("desc");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [editing, setEditing] = useState<TrophyT | null>(null);
   const [open, setOpen] = useState(false);
+  const [catOpen, setCatOpen] = useState(false);
 
   const years = useMemo(
     () => Array.from(new Set(trophies.map((t) => t.year))).sort((a, b) => b.localeCompare(a, undefined, { numeric: true })),
@@ -88,10 +94,15 @@ function Trophies() {
     () => trophies.filter((t) => {
       if (clubFilter !== "all" && t.clubId !== clubFilter) return false;
       if (yearFilter !== "all" && t.year !== yearFilter) return false;
-      if (q && ![t.competition, t.year, t.country].join(" ").toLowerCase().includes(q.toLowerCase())) return false;
+      if (categoryFilter !== "all") {
+        if (categoryFilter === "__none__") {
+          if (t.category) return false;
+        } else if (t.category !== categoryFilter) return false;
+      }
+      if (q && ![t.competition, t.year, t.country, t.category].filter(Boolean).join(" ").toLowerCase().includes(q.toLowerCase())) return false;
       return true;
     }),
-    [trophies, clubFilter, yearFilter, q],
+    [trophies, clubFilter, yearFilter, categoryFilter, q],
   );
 
   const sorted = useMemo(() => {
