@@ -213,6 +213,7 @@ export function AppSidebar() {
                   <Link
                     key={`${competition.id}-${index}`}
                     to={`/seasons/${season.id}`}
+                    title={`${competition.name} · ${season.year}${club ? ` · ${club.name}` : ""}`}
                     className="group flex items-center gap-3 rounded-2xl bg-sidebar/25 px-3 py-2 text-sm transition-all duration-200 hover:bg-sidebar/45"
                   >
                     <Trophy className="h-4 w-4 text-primary" />
