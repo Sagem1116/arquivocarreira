@@ -36,23 +36,48 @@ export function applyClubTheme(hex?: string) {
   root.style.setProperty("--primary-foreground", fg);
   root.style.setProperty("--primary-rgb", rgb.join(" "));
   root.style.setProperty("--ring", c);
-  root.style.setProperty("--sidebar", `color-mix(in oklab, ${c} 24%, var(--background) 76%)`);
+  root.style.setProperty("--accent", `color-mix(in oklab, ${c} 55%, var(--background) 45%)`);
+  root.style.setProperty("--accent-foreground", fg);
+
+  // Stronger overload: tint the whole canvas with the club color.
+  root.style.setProperty("--background", `color-mix(in oklab, ${c} 16%, #0a0a0d 84%)`);
+  root.style.setProperty("--card", `color-mix(in oklab, ${c} 14%, #11131a 86%)`);
+  root.style.setProperty("--muted", `color-mix(in oklab, ${c} 12%, #1a1d26 88%)`);
+  root.style.setProperty("--border", `color-mix(in oklab, ${c} 28%, #1f2230 72%)`);
+  root.style.setProperty("--input", `color-mix(in oklab, ${c} 18%, #15181f 82%)`);
+
+  root.style.setProperty("--sidebar", `color-mix(in oklab, ${c} 42%, #0a0a0d 58%)`);
   root.style.setProperty("--sidebar-foreground", fg);
   root.style.setProperty("--sidebar-primary", c);
   root.style.setProperty("--sidebar-primary-foreground", fg);
-  root.style.setProperty("--sidebar-border", `color-mix(in oklab, ${c} 18%, var(--background) 82% / 70%)`);
-  root.style.setProperty("--sidebar-accent", `color-mix(in oklab, ${c} 30%, var(--background) 70%)`);
+  root.style.setProperty("--sidebar-border", `color-mix(in oklab, ${c} 35%, var(--background) 65%)`);
+  root.style.setProperty("--sidebar-accent", `color-mix(in oklab, ${c} 55%, var(--background) 45%)`);
   root.style.setProperty("--sidebar-accent-foreground", fg);
   root.style.setProperty(
     "--gradient-primary",
-    `linear-gradient(135deg, ${c}, color-mix(in oklab, ${c} 70%, white))`,
+    `linear-gradient(135deg, ${c}, color-mix(in oklab, ${c} 60%, white))`,
   );
   root.style.setProperty(
     "--shadow-glow",
-    `0 0 40px -8px color-mix(in oklab, ${c} 60%, transparent)`,
+    `0 0 60px -8px color-mix(in oklab, ${c} 75%, transparent)`,
+  );
+  root.style.setProperty(
+    "--club-overlay",
+    `radial-gradient(circle at 20% 0%, color-mix(in oklab, ${c} 35%, transparent) 0%, transparent 55%), radial-gradient(circle at 80% 100%, color-mix(in oklab, ${c} 28%, transparent) 0%, transparent 60%)`,
   );
 }
 
 export function resetTheme() {
-  applyClubTheme(DEFAULT_PRIMARY);
+  const root = document.documentElement;
+  // Remove inline overrides so styles.css defaults take over again.
+  for (const prop of [
+    "--primary", "--primary-glow", "--primary-foreground", "--primary-rgb",
+    "--ring", "--accent", "--accent-foreground",
+    "--background", "--card", "--muted", "--border", "--input",
+    "--sidebar", "--sidebar-foreground", "--sidebar-primary", "--sidebar-primary-foreground",
+    "--sidebar-border", "--sidebar-accent", "--sidebar-accent-foreground",
+    "--gradient-primary", "--shadow-glow", "--club-overlay",
+  ]) {
+    root.style.removeProperty(prop);
+  }
 }
