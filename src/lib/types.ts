@@ -38,7 +38,9 @@ export interface SeasonCompetition {
   won?: boolean;
   finalReached?: boolean;
   notes?: string;
+  images?: string[];
 }
+
 
 export interface SeasonMoment {
   id: ID;
