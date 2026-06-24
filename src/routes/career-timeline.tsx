@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Trophy, Sparkles, ChevronDown, Shield, Flag, Globe2 } from "lucide-react";
+import { Trophy, Sparkles, ChevronDown, Shield, Flag, Globe2, Image as ImageIcon } from "lucide-react";
 import { useArchive } from "@/lib/store";
 import { uniqueSeasonYearsByClub } from "@/lib/utils";
 import { PageHeader, EmptyState } from "@/components/PageHeader";
 import { ClubBadge } from "@/components/ClubBadge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Lightbox } from "@/components/Lightbox";
+
 
 export const Route = createFileRoute("/career-timeline")({
   component: CareerTimeline,
