@@ -223,6 +223,45 @@ function SeasonDetail() {
                         </div>
                       </div>
                     </div>
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <Label>Imagens da competição</Label>
+                        <label className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-border bg-surface hover:bg-muted cursor-pointer">
+                          <Upload className="h-3 w-3" /> Adicionar
+                          <input type="file" accept="image/*" multiple className="hidden"
+                            onChange={async (e) => {
+                              const imgs = await readFilesAsBase64(e.target.files);
+                              if (imgs.length === 0) return;
+                              save({
+                                competitions: draft.competitions.map((x) => x.id === c.id ? { ...x, images: [...(x.images || []), ...imgs] } : x),
+                              });
+                              e.target.value = "";
+                            }} />
+                        </label>
+                      </div>
+                      {(c.images || []).length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                          Sem imagens. Carrega imagens para abrirem na timeline ao clicar.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                          {(c.images || []).map((src, idx) => (
+                            <div key={idx} className="group relative aspect-square rounded-xl overflow-hidden border border-border">
+                              <img src={src} alt="" className="h-full w-full object-cover cursor-pointer"
+                                onClick={() => setLb({ images: c.images || [], index: idx })} />
+                              <button
+                                onClick={() => save({
+                                  competitions: draft.competitions.map((x) => x.id === c.id ? { ...x, images: (x.images || []).filter((_, i) => i !== idx) } : x),
+                                })}
+                                className="absolute top-1 right-1 rounded-full bg-background/80 p-1 opacity-0 group-hover:opacity-100">
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                   </div>
                 ))}
               </div>
