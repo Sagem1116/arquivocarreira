@@ -217,14 +217,21 @@ function CareerTimeline() {
                                         Sem competições nesta época.
                                       </div>
                                     ) : (
-                                      season.competitions.map((competition) => (
+                                      season.competitions.map((competition) => {
+                                        const imgs = competition.images || [];
+                                        const hasImgs = imgs.length > 0;
+                                        return (
                                         <div
                                           key={competition.id}
-                                          className={`rounded-3xl border p-2 ${competition.won ? "border-primary bg-primary/10" : "border-border bg-surface"}`}
+                                          onClick={hasImgs ? () => setLb({ images: imgs, index: 0 }) : undefined}
+                                          className={`rounded-3xl border p-2 ${competition.won ? "border-primary bg-primary/10" : "border-border bg-surface"} ${hasImgs ? "cursor-pointer hover:opacity-90" : ""}`}
                                         >
                                           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                                             <div>
-                                              <div className="text-sm font-semibold">{competition.name}</div>
+                                              <div className="text-sm font-semibold flex items-center gap-1.5">
+                                                {competition.name}
+                                                {hasImgs ? <ImageIcon className="h-3 w-3 opacity-70" /> : null}
+                                              </div>
                                               <div className="text-[10px] text-muted-foreground">
                                                 {competition.position || "Posição não informada"}
                                               </div>
@@ -244,8 +251,18 @@ function CareerTimeline() {
                                           {competition.notes ? (
                                             <div className="mt-2 text-xs text-muted-foreground">{competition.notes}</div>
                                           ) : null}
+                                          {hasImgs ? (
+                                            <div className="mt-2 flex gap-1.5 overflow-x-auto">
+                                              {imgs.slice(0, 6).map((src, i) => (
+                                                <img key={i} src={src} alt="" className="h-12 w-12 object-cover rounded-lg border border-border flex-shrink-0"
+                                                  onClick={(e) => { e.stopPropagation(); setLb({ images: imgs, index: i }); }} />
+                                              ))}
+                                            </div>
+                                          ) : null}
                                         </div>
-                                      ))
+                                        );
+                                      })
+
                                     )}
                                   </div>
                                 </div>
