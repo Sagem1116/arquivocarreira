@@ -21,6 +21,8 @@ function CareerTimeline() {
   const data = useArchive((s) => s.data);
   const { clubs, seasons, trophies } = data;
   const [filter, setFilter] = useState<"all" | "clubs" | "selections">("all");
+  const [lb, setLb] = useState<{ images: string[]; index: number } | null>(null);
+
 
   const seasonsByClub = useMemo(() => {
     const map = new Map<string, typeof seasons>();
