@@ -304,6 +304,10 @@ function CareerTimeline() {
           })}
         </div>
       )}
+      {lb ? (
+        <Lightbox images={lb.images} index={lb.index} onClose={() => setLb(null)} onIndex={(i) => setLb({ ...lb, index: i })} />
+      ) : null}
     </div>
   );
 }
+
